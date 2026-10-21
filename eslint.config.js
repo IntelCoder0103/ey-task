@@ -18,4 +18,8 @@ export default tseslint.config(
       'no-warning-comments': ['error', { terms: ['todo', 'fixme'], location: 'anywhere' }],
     },
   },
+  {
+    files: ['**/*.test.{ts,tsx}', 'e2e/**'],
+    rules: { '@typescript-eslint/no-non-null-assertion': 'off' },
+  },
 );

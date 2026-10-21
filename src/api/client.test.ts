@@ -56,7 +56,9 @@ describe('tasksApi', () => {
     expect(created).toMatchObject({ description: 'Steam the silk blouse', completed: false });
 
     await expect(tasksApi.get(created._id)).resolves.toEqual(created);
-    await expect(tasksApi.update(created._id, { completed: true })).resolves.toMatchObject({ completed: true });
+    await expect(tasksApi.update(created._id, { completed: true })).resolves.toMatchObject({
+      completed: true,
+    });
     await expect(tasksApi.list()).resolves.toHaveLength(before.length + 1);
 
     await expect(tasksApi.remove(created._id)).resolves.toBe(created._id);

@@ -10,7 +10,12 @@ export const reconcile = (order: readonly string[], ids: readonly string[]): str
 };
 
 export const applyOrder = <T extends Identified>(order: readonly string[], items: readonly T[]): T[] => {
-  const rank = new Map(reconcile(order, items.map((item) => item._id)).map((id, index) => [id, index]));
+  const rank = new Map(
+    reconcile(
+      order,
+      items.map((item) => item._id),
+    ).map((id, index) => [id, index]),
+  );
   return [...items].sort(by((item) => rank.get(item._id) ?? Infinity));
 };
 

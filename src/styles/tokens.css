@@ -1,0 +1,22 @@
+:root {
+  --paper: #f3ede3;
+  --paper-deep: #e9e0d1;
+  --paper-lift: #f8f4ec;
+  --ink: #1b1a17;
+  --ink-soft: #3a3732;
+  --muted: #6b665c;
+  --hairline: #cfc6b6;
+  --accent: #d6402b;
+  --accent-ink: #b0321f;
+  --olive: #5e5d31;
+
+  --serif: 'Fraunces', 'Iowan Old Style', 'Times New Roman', serif;
+  --sans: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --gutter: clamp(16px, 4vw, 56px);
+  --measure: 1240px;
+  --ease: cubic-bezier(0.2, 0.7, 0.1, 1);
+  --quick: 180ms;
+  --slow: 520ms;
+}

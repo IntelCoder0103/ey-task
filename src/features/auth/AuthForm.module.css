@@ -1,0 +1,85 @@
+.form {
+  display: grid;
+  gap: 28px;
+  width: 100%;
+  max-width: 440px;
+}
+
+.kicker {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+
+.title {
+  margin-top: 10px;
+  font-family: var(--serif);
+  font-size: clamp(2.25rem, 4vw, 3.25rem);
+  font-weight: 300;
+  font-variation-settings: 'opsz' 96;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.title em {
+  font-weight: 400;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 96px;
+  gap: 24px;
+}
+
+.alert {
+  padding: 12px 14px;
+  border-left: 2px solid var(--accent);
+  background: var(--paper-lift);
+  color: var(--accent-ink);
+  font-size: 0.9375rem;
+}
+
+.submit {
+  width: 100%;
+}
+
+.switch {
+  font-size: 0.9375rem;
+  color: var(--muted);
+}
+
+.switch a {
+  color: var(--ink);
+  font-family: var(--serif);
+  font-style: italic;
+  text-underline-offset: 4px;
+}
+
+.switch a:hover {
+  color: var(--accent-ink);
+}
+
+.demo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 14px 16px;
+  border: 1px dashed var(--ink);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+.demo strong {
+  display: block;
+  margin-bottom: 2px;
+  font-weight: 500;
+  font-size: 0.625rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}

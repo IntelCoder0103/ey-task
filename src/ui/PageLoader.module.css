@@ -1,0 +1,30 @@
+.loader {
+  display: grid;
+  place-items: center;
+  gap: 18px;
+  min-height: 60vh;
+}
+
+.needle {
+  width: 160px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--ink) 30% 70%, transparent);
+  background-size: 200% 100%;
+  animation: sweep 1.2s var(--ease) infinite;
+}
+
+.label {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.25rem;
+  color: var(--muted);
+}
+
+@keyframes sweep {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}

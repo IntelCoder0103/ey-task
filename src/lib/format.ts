@@ -19,5 +19,7 @@ export const formatDate = (iso: string) => dateFormat.format(new Date(iso));
 
 export const seasonLabel = (date = new Date()) => {
   const month = date.getMonth();
-  return month >= 2 && month <= 7 ? `Spring / Summer ${date.getFullYear()}` : `Autumn / Winter ${date.getFullYear()}`;
+  return month >= 2 && month <= 7
+    ? `Spring / Summer ${date.getFullYear()}`
+    : `Autumn / Winter ${date.getFullYear()}`;
 };

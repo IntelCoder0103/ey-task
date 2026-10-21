@@ -1,3 +1,4 @@
+import { DEMO } from './demo';
 import type { Task, User } from '../api/schemas';
 
 export type StoredUser = Required<Pick<User, '_id' | 'name' | 'email' | 'createdAt' | 'updatedAt'>> &
@@ -7,7 +8,7 @@ export type DbState = { users: StoredUser[]; tasks: Task[] };
 
 export type Persistence = { load: () => DbState | null; save: (state: DbState) => void };
 
-export const DEMO = { email: 'demo@atelier.studio', password: 'atelier2026' } as const;
+export { DEMO } from './demo';
 
 export const objectId = () =>
   Array.from({ length: 24 }, () => Math.floor(Math.random() * 16).toString(16)).join('');

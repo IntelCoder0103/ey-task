@@ -1,0 +1,254 @@
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px 4.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 18px;
+  padding: 22px 0;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--paper);
+  animation: enter var(--slow) var(--ease) both;
+}
+
+.row[data-dragging] {
+  z-index: 2;
+  border-color: transparent;
+  box-shadow:
+    0 0 0 1px var(--ink),
+    10px 14px 0 -2px rgba(27, 26, 23, 0.12);
+  padding-inline: 12px;
+  margin-inline: -12px;
+}
+
+.row[data-draft] {
+  opacity: 0.6;
+}
+
+.handle {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--hairline);
+  cursor: grab;
+  touch-action: none;
+}
+
+.handle svg {
+  width: 10px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.row:hover .handle,
+.handle:focus-visible {
+  color: var(--ink);
+}
+
+.handle:active {
+  cursor: grabbing;
+}
+
+.number {
+  font-family: var(--serif);
+  font-size: 2.75rem;
+  font-style: italic;
+  font-weight: 300;
+  font-variation-settings: 'opsz' 144;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+  transition: color var(--quick) var(--ease);
+}
+
+.row[data-done] .number {
+  color: var(--olive);
+}
+
+.body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.title {
+  justify-self: start;
+  max-width: 100%;
+  font-family: var(--serif);
+  font-size: clamp(1.25rem, 2.2vw, 1.75rem);
+  font-weight: 350;
+  font-variation-settings: 'opsz' 48;
+  line-height: 1.2;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.text {
+  position: relative;
+  background-image: linear-gradient(var(--ink), var(--ink));
+  background-size: 0 1px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition:
+    background-size var(--quick) var(--ease),
+    color var(--quick) var(--ease);
+}
+
+.title:hover .text {
+  background-size: 100% 1px;
+}
+
+.row[data-done] .text {
+  color: var(--muted);
+}
+
+.strike {
+  position: absolute;
+  left: -2%;
+  top: 50%;
+  width: 104%;
+  height: 0.55em;
+  overflow: visible;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.strike path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset var(--slow) var(--ease);
+}
+
+.row[data-done] .strike path {
+  stroke-dashoffset: 0;
+}
+
+.meta {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.check {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+}
+
+.check input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.check span {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  transition:
+    background var(--quick) var(--ease),
+    box-shadow var(--quick) var(--ease);
+}
+
+.check input:checked + span {
+  background: var(--ink);
+  box-shadow: inset 0 0 0 4px var(--paper);
+}
+
+.check input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.check:hover span {
+  box-shadow: inset 0 0 0 4px var(--paper-deep);
+}
+
+.icon {
+  width: 32px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--sans);
+  font-size: 1.125rem;
+  color: var(--muted);
+  opacity: 0;
+  transition:
+    opacity var(--quick) var(--ease),
+    color var(--quick) var(--ease);
+}
+
+.row:hover .icon,
+.row:focus-within .icon {
+  opacity: 1;
+}
+
+.icon:disabled {
+  visibility: hidden;
+}
+
+.icon:not(:disabled):hover {
+  color: var(--ink);
+}
+
+.remove {
+  font-size: 1.5rem;
+}
+
+.remove:not(:disabled):hover {
+  color: var(--accent-ink);
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (hover: none) {
+  .icon {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 22px 2.75rem minmax(0, 1fr);
+    gap: 6px 12px;
+    padding: 18px 0;
+  }
+
+  .number {
+    font-size: 2rem;
+  }
+
+  .controls {
+    grid-column: 2 / -1;
+    justify-content: flex-end;
+    margin-top: -4px;
+  }
+}

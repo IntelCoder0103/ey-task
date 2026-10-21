@@ -13,7 +13,14 @@ type AuthedContext = {
 
 const fail = (status: number, error: string) => HttpResponse.json({ error }, { status });
 
-const publicUser = ({ password: _password, tokens: _tokens, ...user }: StoredUser) => user;
+const publicUser = ({ _id, name, email, age, createdAt, updatedAt }: StoredUser) => ({
+  _id,
+  name,
+  email,
+  age,
+  createdAt,
+  updatedAt,
+});
 
 const readJson = async <T>(request: Request): Promise<Partial<T>> => {
   try {
@@ -26,12 +33,26 @@ const readJson = async <T>(request: Request): Promise<Partial<T>> => {
 const token = () => `mock.${objectId()}${objectId()}`;
 const now = () => new Date().toISOString();
 
-const validateRegistration = ({ name, email, password }: Partial<StoredUser>) => {
-  if (!name?.trim()) return 'Please tell us your name.';
-  if (!email || !/^\S+@\S+\.\S+$/.test(email)) return 'Email is invalid';
-  if (!password || password.length < 7) return 'Password must be at least 7 characters';
-  if (password.toLowerCase().includes('password')) return 'Password cannot contain "password"';
-  return null;
+type Registration = Pick<StoredUser, 'name' | 'email' | 'password' | 'age'>;
+
+const parseRegistration = ({
+  name,
+  email,
+  password,
+  age,
+}: Partial<StoredUser>): { error: string } | { value: Registration } => {
+  if (!name?.trim()) return { error: 'Please tell us your name.' };
+  if (!email || !/^\S+@\S+\.\S+$/.test(email)) return { error: 'Email is invalid' };
+  if (!password || password.length < 7) return { error: 'Password must be at least 7 characters' };
+  if (password.toLowerCase().includes('password')) return { error: 'Password cannot contain "password"' };
+  return {
+    value: {
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      password,
+      age: typeof age === 'number' ? age : 0,
+    },
+  };
 };
 
 export const createHandlers = (db: Db, { base, latency = 0 }: Options) => {
@@ -63,20 +84,15 @@ export const createHandlers = (db: Db, { base, latency = 0 }: Options) => {
   return [
     http.post(url('/user/register'), async ({ request }) => {
       await delay(latency);
-      const input = await readJson<StoredUser>(request);
-      const problem = validateRegistration(input);
-      if (problem) return fail(400, problem);
-      const email = input.email!.trim().toLowerCase();
-      if (db.read().users.some((user) => user.email === email)) {
+      const parsed = parseRegistration(await readJson<StoredUser>(request));
+      if ('error' in parsed) return fail(400, parsed.error);
+      if (db.read().users.some((user) => user.email === parsed.value.email)) {
         return fail(400, 'That email is already on the list.');
       }
       const issued = token();
       const user: StoredUser = {
+        ...parsed.value,
         _id: objectId(),
-        name: input.name!.trim(),
-        email,
-        password: input.password!,
-        age: typeof input.age === 'number' ? input.age : 0,
         tokens: [issued],
         createdAt: now(),
         updatedAt: now(),
@@ -90,7 +106,9 @@ export const createHandlers = (db: Db, { base, latency = 0 }: Options) => {
       const { email, password } = await readJson<StoredUser>(request);
       const user = db
         .read()
-        .users.find((candidate) => candidate.email === email?.trim().toLowerCase() && candidate.password === password);
+        .users.find(
+          (candidate) => candidate.email === email?.trim().toLowerCase() && candidate.password === password,
+        );
       if (!user) return fail(400, 'Unable to login');
       const issued = token();
       updateUser(user._id, (current) => ({ ...current, tokens: [...current.tokens, issued] }));
