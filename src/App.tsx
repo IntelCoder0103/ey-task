@@ -6,9 +6,8 @@ import { RegisterPage } from './features/auth/RegisterPage';
 import { SignInPage } from './features/auth/SignInPage';
 import { StudioLayout } from './features/studio/StudioLayout';
 import { TaskDetailPage } from './features/tasks/TaskDetailPage';
+import { routerFuture } from './app/router';
 import { TaskListPage } from './features/tasks/TaskListPage';
-
-export const routerFuture = { v7_startTransition: true, v7_relativeSplatPath: true } as const;
 
 export const AppRoutes = () => {
   useClearCacheOnSignOut();

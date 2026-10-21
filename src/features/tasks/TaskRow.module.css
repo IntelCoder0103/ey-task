@@ -6,12 +6,12 @@
   gap: 8px 18px;
   padding: 22px 0;
   border-bottom: 1px solid var(--hairline);
-  background: var(--paper);
   animation: enter var(--slow) var(--ease) both;
 }
 
 .row[data-dragging] {
   z-index: 2;
+  background: var(--paper-lift);
   border-color: transparent;
   box-shadow:
     0 0 0 1px var(--ink),
@@ -87,48 +87,30 @@
 }
 
 .text {
-  position: relative;
-  background-image: linear-gradient(var(--ink), var(--ink));
-  background-size: 0 1px;
-  background-position: 0 100%;
+  --strike: 0%;
+  --underline: 0%;
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 12' preserveAspectRatio='none'><path d='M1 7.5 C 18 3, 34 10, 52 6 S 84 3.5, 99 6.5' fill='none' stroke='%23d6402b' stroke-width='2.2' stroke-linecap='round' vector-effect='non-scaling-stroke'/></svg>"),
+    linear-gradient(var(--ink), var(--ink));
+  background-size:
+    var(--strike) 0.6em,
+    var(--underline) 1px;
+  background-position:
+    0 58%,
+    0 100%;
   background-repeat: no-repeat;
   transition:
-    background-size var(--quick) var(--ease),
+    background-size var(--slow) var(--ease),
     color var(--quick) var(--ease);
 }
 
 .title:hover .text {
-  background-size: 100% 1px;
+  --underline: 100%;
 }
 
 .row[data-done] .text {
+  --strike: 100%;
   color: var(--muted);
-}
-
-.strike {
-  position: absolute;
-  left: -2%;
-  top: 50%;
-  width: 104%;
-  height: 0.55em;
-  overflow: visible;
-  transform: translateY(-50%);
-  pointer-events: none;
-}
-
-.strike path {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 2.2;
-  stroke-linecap: round;
-  vector-effect: non-scaling-stroke;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  transition: stroke-dashoffset var(--slow) var(--ease);
-}
-
-.row[data-done] .strike path {
-  stroke-dashoffset: 0;
 }
 
 .meta {

@@ -15,12 +15,6 @@ type Props = {
   onMoveDown?: () => void;
 };
 
-const Strike = () => (
-  <svg className={styles.strike} viewBox="0 0 100 12" preserveAspectRatio="none" aria-hidden="true">
-    <path d="M1 7.5 C 18 3, 34 10, 52 6 S 84 3.5, 99 6.5" pathLength="1" />
-  </svg>
-);
-
 export const TaskRow = ({ task, number, onToggle, onRemove, onMoveUp, onMoveDown }: Props) => {
   const draft = isDraft(task);
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
@@ -57,10 +51,7 @@ export const TaskRow = ({ task, number, onToggle, onRemove, onMoveUp, onMoveDown
           <span className={styles.title}>{task.description}</span>
         ) : (
           <Link to={`/tasks/${task._id}`} className={styles.title}>
-            <span className={styles.text}>
-              {task.description}
-              <Strike />
-            </span>
+            <span className={styles.text}>{task.description}</span>
           </Link>
         )}
         <span className={styles.meta}>{draft ? 'Filing…' : `Filed ${formatDate(task.createdAt)}`}</span>

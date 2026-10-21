@@ -4,7 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { authApi } from '../api/client';
 import { session } from '../api/session';
-import { AppRoutes, routerFuture } from '../App';
+import { AppRoutes } from '../App';
+import { routerFuture } from '../app/router';
 import { createQueryClient } from '../app/queryClient';
 import { DEMO } from '../mocks/demo';
 
