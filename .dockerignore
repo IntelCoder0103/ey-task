@@ -6,4 +6,3 @@ test-results
 .git
 .env
 .env.local
-.claude-dev-helper
