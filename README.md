@@ -19,10 +19,10 @@ brew install nvm && nvm install 22 && nvm use 22
 # 2. Install and run both apps
 git clone <this repo> atelier && cd atelier
 npm ci
-npm run dev            # API → http://localhost:4000 · Web → http://localhost:5173
+npm run dev            # API → http://127.0.0.1:4000 · Web → http://127.0.0.1:5173
 ```
 
-Open http://localhost:5173 and sign in with the **demo account**. The sign-in page has a one-click "Use demo" button.
+Open http://127.0.0.1:5173 and sign in with the **demo account**. The sign-in page has a one-click "Use demo" button.
 
 ```
 demo@atelier.studio / atelier2026
