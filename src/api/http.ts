@@ -1,13 +1,19 @@
 import type { ZodType } from 'zod';
 import { pipe, pipeAsync } from '../lib/fp';
 
-export type ApiError = Error & { status: number };
+export type FieldIssue = { path: string; message: string };
+export type ApiError = Error & { status: number; details: FieldIssue[] };
 
-export const apiError = (status: number, message: string): ApiError =>
-  Object.assign(new Error(message), { name: 'ApiError', status });
+export const apiError = (status: number, message: string, details: FieldIssue[] = []): ApiError =>
+  Object.assign(new Error(message), { name: 'ApiError', status, details });
 
 export const isApiError = (error: unknown): error is ApiError =>
   error instanceof Error && error.name === 'ApiError';
+
+export const fieldErrors = (error: unknown): Record<string, string> =>
+  isApiError(error)
+    ? Object.fromEntries(error.details.filter(({ path }) => path).map(({ path, message }) => [path, message]))
+    : {};
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 type Query = Record<string, string | number | boolean | undefined>;
@@ -45,6 +51,14 @@ const messageFrom = (body: unknown): string | undefined => {
     return [error, message].find((value): value is string => typeof value === 'string' && value.length > 0);
   }
   return undefined;
+};
+
+const isIssue = (value: unknown): value is FieldIssue =>
+  typeof (value as FieldIssue)?.path === 'string' && typeof (value as FieldIssue)?.message === 'string';
+
+const detailsFrom = (body: unknown): FieldIssue[] => {
+  const details = (body as { details?: unknown } | null)?.details;
+  return Array.isArray(details) ? details.filter(isIssue) : [];
 };
 
 const withAuth =
@@ -104,7 +118,11 @@ export const createHttp = ({
       const payload = await readBody(response);
       if (response.ok) return payload;
       if (response.status === 401 && token) onUnauthorized();
-      throw apiError(response.status, messageFrom(payload) ?? fallbackMessage(response.status));
+      throw apiError(
+        response.status,
+        messageFrom(payload) ?? fallbackMessage(response.status),
+        detailsFrom(payload),
+      );
     };
 
     const parse = (payload: unknown) => {

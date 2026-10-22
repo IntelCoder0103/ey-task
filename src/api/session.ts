@@ -7,6 +7,12 @@ export const createSession = (key: string) => {
   const listeners = new Set<Listener>();
   const emit = () => listeners.forEach((listener) => listener());
 
+  window.addEventListener('storage', (event) => {
+    if (event.key !== key && event.key !== null) return;
+    token = readJson<string | null>(key, null);
+    emit();
+  });
+
   return {
     get: () => token,
     set: (next: string) => {
@@ -28,7 +34,5 @@ export const createSession = (key: string) => {
     },
   };
 };
-
-export type Session = ReturnType<typeof createSession>;
 
 export const session = createSession('atelier:token');

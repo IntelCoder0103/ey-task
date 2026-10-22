@@ -24,6 +24,7 @@ const useAuthMutation = <V>(request: (variables: V) => Promise<AuthResponse>) =>
   return useMutation({
     mutationFn: request,
     onSuccess: ({ user, token }) => {
+      client.clear();
       client.setQueryData(meKey(token), user);
       session.set(token);
     },

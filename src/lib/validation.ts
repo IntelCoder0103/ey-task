@@ -8,15 +8,25 @@ export const required =
     value.trim() ? null : `${label} is required.`;
 
 export const isEmail: Rule = (value) =>
-  /^\S+@\S+\.\S+$/.test(value.trim()) ? null : 'That email doesn’t look right.';
+  /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value.trim()) ? null : 'That email doesn’t look right.';
 
 export const minLength =
   (length: number): Rule =>
   (value) =>
     value.length >= length ? null : `Use at least ${length} characters.`;
 
-export const optionalNumber: Rule = (value) =>
-  value === '' || /^\d+$/.test(value) ? null : 'Enter a whole number.';
+export const maxLength =
+  (length: number): Rule =>
+  (value) =>
+    value.trim().length <= length ? null : `Keep it to ${length} characters or fewer.`;
+
+export const optionalWholeNumber =
+  (max: number): Rule =>
+  (value) => {
+    if (value === '') return null;
+    if (!/^\d+$/.test(value)) return 'Enter a whole number.';
+    return Number(value) <= max ? null : `Enter ${max} or less.`;
+  };
 
 export const validate =
   <K extends string>(schema: Record<K, Rule[]>) =>

@@ -22,6 +22,13 @@ describe('platform', () => {
     await api.get('/nope').expect(404, { error: 'Route not found.' });
   });
 
+  it('serves every route under /api too, for path-preserving proxies like CloudFront', async () => {
+    const { api } = await setup();
+    await api.get('/api/health').expect(200, { status: 'ok' });
+    await api.post('/api/auth/login').send(DEMO).expect(200);
+    await api.get('/api/tasks').expect(401);
+  });
+
   it('rejects malformed JSON with 400', async () => {
     const { api } = await setup();
     await api
@@ -87,6 +94,10 @@ describe('auth', () => {
 
     const auth = await login();
     await api.get('/users/me').set(auth).expect(200);
+    await api
+      .get('/users/me')
+      .set('Authorization', auth.Authorization.replace('Bearer ', 'bearer  '))
+      .expect(200);
     clock = new Date(clock.getTime() + 60_001);
     await api.get('/users/me').set(auth).expect(401);
   });
@@ -174,11 +185,39 @@ describe('tasks', () => {
     const { body } = await api.put('/tasks/order').set(auth).send({ ids: reversed }).expect(200);
     expect(body.data.map((task: { id: string }) => task.id)).toEqual(reversed);
 
+    const partial = await api
+      .put('/tasks/order')
+      .set(auth)
+      .send({ ids: [ids[2]] })
+      .expect(200);
+    expect(partial.body.data.map((task: { id: string }) => task.id)).toEqual([
+      ids[2],
+      ...reversed.filter((id) => id !== ids[2]),
+    ]);
+
     await api
       .put('/tasks/order')
       .set(auth)
-      .send({ ids: reversed.slice(1) })
-      .expect(400, { error: 'ids must list every task exactly once.' });
+      .send({ ids: [ids[0], ids[0]] })
+      .expect(400, { error: 'ids must be your own tasks, each listed once.' });
+    await api
+      .put('/tasks/order')
+      .set(auth)
+      .send({ ids: ['draft-1'] })
+      .expect(400);
+  });
+
+  it('prunes expired sessions when a new one starts', async () => {
+    let clock = new Date('2026-10-21T00:00:00Z');
+    const { api, store, login } = await setup({ sessionTtlMs: 60_000, now: () => clock });
+    await login();
+    await login();
+    expect(store.read().sessions).toHaveLength(2);
+
+    clock = new Date(clock.getTime() + 60_001);
+    await login();
+    expect(store.read().sessions).toHaveLength(1);
+    await api.get('/health').expect(200);
   });
 
   it('deletes and closes the gap in positions', async () => {

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { createHttp, isApiError } from './http';
+import { createHttp, fieldErrors, isApiError } from './http';
 
 const json = (status: number, body: unknown) =>
   new Response(body === undefined ? null : JSON.stringify(body), {
@@ -58,6 +58,18 @@ describe('createHttp', () => {
       status: 400,
       message: 'Invalid updates!',
     });
+  });
+
+  it('keeps field-level validation details', async () => {
+    const { http } = setup(
+      json(400, {
+        error: 'Name is required.',
+        details: [{ path: 'name', message: 'Name is required.' }, { path: '', message: 'ignored' }, 'junk'],
+      }),
+    );
+    const error = await http('/x', { schema: Thing }).catch((e: unknown) => e);
+    expect(fieldErrors(error)).toEqual({ name: 'Name is required.' });
+    expect(fieldErrors(new Error('plain'))).toEqual({});
   });
 
   it('accepts plain-text error bodies', async () => {

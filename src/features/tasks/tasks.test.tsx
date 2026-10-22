@@ -3,7 +3,8 @@ import { http, HttpResponse } from 'msw';
 import { apiBase } from '../../api/config';
 import { renderApp, signInAsDemo } from '../../test/renderApp';
 import { backend, network } from '../../test/network';
-import { SEARCH_DEBOUNCE_MS, UNDO_MS } from './TaskListPage';
+import { UNDO_MS } from './pendingDeletes';
+import { SEARCH_DEBOUNCE_MS } from './TaskListPage';
 
 const rowTitles = () =>
   within(screen.getByRole('list', { name: 'Tasks' }))
@@ -38,7 +39,7 @@ describe('the edit (task list)', () => {
     expect(stored('Steam the silk blouse')).toMatchObject({ position: 5 });
   });
 
-  it('pauses reordering while a new task is still being filed', async () => {
+  it('keeps reordering safe while a new task is still being filed', async () => {
     let release: () => void = () => undefined;
     network.use(
       http.post(
@@ -51,13 +52,15 @@ describe('the edit (task list)', () => {
     );
     const { user } = await openEdit();
     await user.type(screen.getByLabelText('New task'), 'Press the pleats{Enter}');
-
     expect(screen.getByText('Press the pleats')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Move/ })).not.toBeInTheDocument();
+
+    const [, second] = rowTitles();
+    await user.click(screen.getByRole('button', { name: `Move “${second}” up` }));
+    await waitFor(() => expect(stored(second!)?.position).toBe(0));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
     release();
     expect(await screen.findByRole('alert')).toHaveTextContent('That change didn’t save');
-    expect(screen.getAllByRole('button', { name: /^Move/ }).length).toBeGreaterThan(0);
   });
 
   it('ignores blank submissions', async () => {
@@ -236,7 +239,21 @@ describe('task detail', () => {
     await user.click(screen.getByRole('button', { name: 'Yes, remove it' }));
 
     expect(await screen.findByRole('heading', { name: /the edit/i })).toBeInTheDocument();
-    await waitFor(() => expect(stored(doomed.description)).toBeUndefined());
+    await screen.findByRole('list', { name: 'Tasks' });
+    expect(rowTitles()).not.toContain(doomed.description);
+    await user.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(rowTitles()).toContain(doomed.description);
+    expect(stored(doomed.description)).toBeDefined();
+  });
+
+  it('commits pending deletes before signing out', async () => {
+    const { user } = await openEdit();
+    const [first] = rowTitles();
+    await user.click(screen.getByRole('button', { name: `Remove “${first}”` }));
+    await user.click(screen.getByRole('button', { name: /sign out/i }));
+
+    expect(await screen.findByRole('heading', { name: /sign in to your edit/i })).toBeInTheDocument();
+    expect(stored(first!)).toBeUndefined();
   });
 
   it('reports a missing task as out of print', async () => {

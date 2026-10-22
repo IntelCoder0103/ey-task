@@ -25,6 +25,23 @@ describe('createSession', () => {
     expect(listener).toHaveBeenCalledTimes(2);
   });
 
+  it('follows sign-in and sign-out from other tabs', () => {
+    const session = createSession('s');
+    const listener = vi.fn();
+    session.subscribe(listener);
+
+    localStorage.setItem('s', JSON.stringify('from-another-tab'));
+    window.dispatchEvent(new StorageEvent('storage', { key: 's' }));
+    expect(session.get()).toBe('from-another-tab');
+
+    localStorage.removeItem('s');
+    window.dispatchEvent(new StorageEvent('storage', { key: 's' }));
+    expect(session.get()).toBeNull();
+
+    window.dispatchEvent(new StorageEvent('storage', { key: 'unrelated' }));
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
   it('ignores clearing an empty session', () => {
     const session = createSession('s');
     const listener = vi.fn();

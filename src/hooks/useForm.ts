@@ -4,6 +4,7 @@ import type { Errors } from '../lib/validation';
 export const useForm = <K extends string>(
   initial: Record<K, string>,
   check: (values: Record<K, string>) => Errors<K>,
+  serverErrors: Partial<Record<string, string>> = {},
 ) => {
   const [values, setValues] = useState(initial);
   const [errors, setErrors] = useState<Errors<K>>({});
@@ -11,7 +12,7 @@ export const useForm = <K extends string>(
   const field = (name: K) => ({
     name,
     value: values[name],
-    error: errors[name],
+    error: errors[name] ?? serverErrors[name],
     onChange: (event: ChangeEvent<HTMLInputElement>) =>
       setValues((current) => ({ ...current, [name]: event.target.value })),
   });

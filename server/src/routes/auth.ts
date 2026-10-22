@@ -3,8 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { digest, hashPassword, issueToken, verifyPassword } from '../domain/security';
 import type { State, User } from '../domain/types';
-import { addSession, findByEmail, removeSession, toPublicUser } from '../domain/users';
-import { authOf } from '../http/auth';
+import { addSession, findByEmail, pruneSessions, removeSession, toPublicUser } from '../domain/users';
+import { authOf, isLive } from '../http/auth';
 import { httpError } from '../http/errors';
 import { reply, route } from '../http/route';
 import type { Store } from '../store/store';
@@ -21,12 +21,16 @@ const Credentials = z.object({
 });
 
 const Registration = z.object({
-  name: z.string({ required_error: 'Name is required.' }).trim().min(1, 'Name is required.').max(80),
+  name: z
+    .string({ required_error: 'Name is required.' })
+    .trim()
+    .min(1, 'Name is required.')
+    .max(80, 'Keep the name to 80 characters or fewer.'),
   email,
   password: z
     .string({ required_error: 'Password is required.' })
     .min(7, 'Password must be at least 7 characters.')
-    .max(200),
+    .max(200, 'Keep the password to 200 characters or fewer.'),
   age: z
     .number()
     .int('Age must be a whole number.')
@@ -35,16 +39,24 @@ const Registration = z.object({
     .optional(),
 });
 
-type Deps = { store: Store; passwordRounds: number; now: () => Date; guard: RequestHandler };
+type Deps = {
+  store: Store;
+  passwordRounds: number;
+  sessionTtlMs: number;
+  now: () => Date;
+  guard: RequestHandler;
+};
 
 const emailTaken = () => httpError(409, 'That email is already registered.');
 
-export const authRoutes = ({ store, passwordRounds, now, guard }: Deps) => {
+export const authRoutes = ({ store, passwordRounds, sessionTtlMs, now, guard }: Deps) => {
   const decoyHash = hashPassword('decoy-password', passwordRounds);
 
   const startSession = (state: State, userId: string) => {
     const token = issueToken();
-    return [addSession(state, userId, digest(token), now().toISOString()), token] as const;
+    const current = now();
+    const pruned = pruneSessions(state, (session) => isLive(session.createdAt, sessionTtlMs, current));
+    return [addSession(pruned, userId, digest(token), current.toISOString()), token] as const;
   };
 
   return Router()

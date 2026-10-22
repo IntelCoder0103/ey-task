@@ -34,6 +34,10 @@ describe('updaters', () => {
   it('reorder assigns positions from the id list and sorts by them', () => {
     expect(summary(updaters.reorder(tasks, ['c', 'a', 'b']))).toEqual(['c0', 'a1', 'b2']);
   });
+
+  it('reorder keeps unlisted tasks after the listed ones, like the server', () => {
+    expect(summary(updaters.reorder(tasks, ['c']))).toEqual(['c0', 'a1', 'b2']);
+  });
 });
 
 describe('filters', () => {

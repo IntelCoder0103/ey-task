@@ -12,21 +12,19 @@ import type { CSSProperties } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { Task } from '../../api/schemas';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
-import { useUndoable } from '../../hooks/useUndoable';
 import { formatDate } from '../../lib/format';
 import { move } from '../../lib/order';
 import { ErrorPanel } from '../../ui/ErrorPanel';
 import { EmptyState } from './EmptyState';
 import { FilterTabs } from './FilterTabs';
-import { filterFor, parseFilter, tally, type Filter } from './model';
+import { filterFor, isDraft, parseFilter, tally, type Filter } from './model';
 import { NewTaskForm } from './NewTaskForm';
-import { useCreateTask, useDeleteTask, useReorderTasks, useTaskList, useUpdateTask } from './queries';
+import { usePendingDeletes } from './pendingDeletes';
+import { useCreateTask, useReorderTasks, useTaskList, useUpdateTask } from './queries';
 import { SearchField } from './SearchField';
 import { TaskRow } from './TaskRow';
 import styles from './TaskListPage.module.css';
-import { UndoSlips } from './UndoSlips';
 
-export const UNDO_MS = 5000;
 export const SEARCH_DEBOUNCE_MS = 250;
 
 const Skeleton = () => (
@@ -66,36 +64,43 @@ export const TaskListPage = () => {
   const results = useTaskList(search);
   const create = useCreateTask();
   const update = useUpdateTask();
-  const remove = useDeleteTask();
   const reorder = useReorderTasks();
-  const removal = useUndoable(remove.mutateAsync, UNDO_MS);
+  const deletes = usePendingDeletes();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const hidden = new Set(removal.pending);
+  const hidden = new Set(deletes.pending);
   const isLive = (task: Task) => !hidden.has(task.id);
   const everything = (collection.data ?? []).filter(isLive);
   const found = (results.data ?? []).filter(isLive);
   const visible = found.filter(filterFor(filter));
   const counts = tally(everything);
   const progress = counts.all ? counts.done / counts.all : 0;
-  const failure = [create, update, remove, reorder].find((mutation) => mutation.isError)?.error;
-  const reorderable = !searching && !create.isPending;
+  const failure = [create.error, update.error, reorder.error, deletes.error].find(Boolean);
 
-  const moveTask = (activeId: string, overId: string) => {
-    if (!reorderable) return;
-    const ids = (collection.data ?? []).map((task) => task.id);
+  const fresh =
+    <A extends unknown[]>(action: (...args: A) => void) =>
+    (...args: A) => {
+      [create, update, reorder]
+        .filter((mutation) => mutation.isError)
+        .forEach((mutation) => mutation.reset());
+      action(...args);
+    };
+
+  const moveTask = fresh((activeId: string, overId: string) => {
+    const ids = (collection.data ?? []).filter((task) => !isDraft(task)).map((task) => task.id);
     const next = move(ids, activeId, overId);
     if (next !== ids) reorder.mutate(next);
-  };
+  });
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     if (over) moveTask(String(active.id), String(over.id));
   };
-  const toggle = (task: Task) => update.mutate({ id: task.id, patch: { completed: !task.completed } });
-  const neighbour = (index: number) => (reorderable ? visible[index]?.id : undefined);
+  const toggle = fresh((task: Task) => update.mutate({ id: task.id, patch: { completed: !task.completed } }));
+  const add = fresh((description: string) => create.mutate(description));
+  const neighbour = (index: number) => (searching ? undefined : visible[index]?.id);
 
   return (
     <main className={styles.page}>
@@ -136,7 +141,7 @@ export const TaskListPage = () => {
         </div>
       </header>
 
-      <NewTaskForm nextNumber={counts.all + 1} onAdd={(description) => create.mutate(description)} />
+      <NewTaskForm nextNumber={counts.all + 1} onAdd={add} />
 
       <SearchField
         value={query}
@@ -170,9 +175,9 @@ export const TaskListPage = () => {
                     key={task.id}
                     task={task}
                     number={task.position + 1}
-                    sortable={reorderable}
+                    sortable={!searching}
                     onToggle={toggle}
-                    onRemove={({ id }) => removal.schedule(id)}
+                    onRemove={({ id }) => deletes.schedule(id)}
                     onMoveUp={above ? () => moveTask(task.id, above) : undefined}
                     onMoveDown={below ? () => moveTask(task.id, below) : undefined}
                   />
@@ -182,12 +187,6 @@ export const TaskListPage = () => {
           </SortableContext>
         </DndContext>
       )}
-
-      <UndoSlips
-        tasks={(collection.data ?? []).filter((task) => hidden.has(task.id))}
-        delayMs={UNDO_MS}
-        onUndo={removal.undo}
-      />
     </main>
   );
 };

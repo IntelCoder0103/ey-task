@@ -59,4 +59,20 @@ describe('useUndoable', () => {
     unmount();
     expect(commit).toHaveBeenCalledWith('a');
   });
+
+  it('flush commits everything pending right away', async () => {
+    const commit = vi.fn(async () => undefined);
+    const { result } = renderHook(() => useUndoable(commit, 5000));
+    act(() => {
+      result.current.schedule('a');
+      result.current.schedule('b');
+    });
+
+    await act(() => result.current.flush());
+
+    expect(commit.mock.calls).toEqual([['a'], ['b']]);
+    expect(result.current.pending).toEqual([]);
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+    expect(commit).toHaveBeenCalledTimes(2);
+  });
 });

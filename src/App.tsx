@@ -1,12 +1,12 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { routerFuture } from './app/router';
 import { GuestOnly, RequireAuth } from './features/auth/guards';
 import { useClearCacheOnSignOut } from './features/auth/hooks';
 import { RegisterPage } from './features/auth/RegisterPage';
 import { SignInPage } from './features/auth/SignInPage';
 import { StudioLayout } from './features/studio/StudioLayout';
 import { TaskDetailPage } from './features/tasks/TaskDetailPage';
-import { routerFuture } from './app/router';
 import { TaskListPage } from './features/tasks/TaskListPage';
 
 export const AppRoutes = () => {

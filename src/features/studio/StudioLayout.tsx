@@ -2,11 +2,19 @@ import { Link, Outlet } from 'react-router-dom';
 import { issueNumber, seasonLabel } from '../../lib/format';
 import { Button } from '../../ui/Button';
 import { useCurrentUser, useSignOut } from '../auth/hooks';
+import { UNDO_MS, usePendingDeletes } from '../tasks/pendingDeletes';
+import { PendingDeletesProvider } from '../tasks/PendingDeletesProvider';
+import { useTaskList } from '../tasks/queries';
+import { UndoSlips } from '../tasks/UndoSlips';
 import styles from './StudioLayout.module.css';
 
-export const StudioLayout = () => {
+const Studio = () => {
   const user = useCurrentUser();
   const signOut = useSignOut();
+  const deletes = usePendingDeletes();
+  const { data: tasks = [] } = useTaskList();
+
+  const leave = () => deletes.flush().then(() => signOut.mutate());
 
   return (
     <div className={styles.shell}>
@@ -22,7 +30,7 @@ export const StudioLayout = () => {
           <span className={styles.name}>
             Edited by <em>{user.name}</em>
           </span>
-          <Button variant="quiet" onClick={() => signOut.mutate()} busy={signOut.isPending}>
+          <Button variant="quiet" onClick={leave} busy={signOut.isPending}>
             Sign out
           </Button>
         </div>
@@ -34,6 +42,18 @@ export const StudioLayout = () => {
         <span>Atelier — a to-do edition</span>
         <span>Set in Fraunces, Instrument Sans &amp; JetBrains Mono</span>
       </footer>
+
+      <UndoSlips
+        tasks={tasks.filter((task) => deletes.pending.includes(task.id))}
+        delayMs={UNDO_MS}
+        onUndo={deletes.undo}
+      />
     </div>
   );
 };
+
+export const StudioLayout = () => (
+  <PendingDeletesProvider>
+    <Studio />
+  </PendingDeletesProvider>
+);

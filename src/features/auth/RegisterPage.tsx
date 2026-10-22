@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { isEmail, minLength, optionalNumber, required, validate } from '../../lib/validation';
+import { fieldErrors } from '../../api/http';
+import { isEmail, maxLength, minLength, optionalWholeNumber, required, validate } from '../../lib/validation';
 import { Button } from '../../ui/Button';
 import { Field } from '../../ui/Field';
 import { useForm } from '../../hooks/useForm';
@@ -8,15 +9,20 @@ import { Cover } from './Cover';
 import { useRegister } from './hooks';
 
 const check = validate({
-  name: [required('Name')],
+  name: [required('Name'), maxLength(80)],
   email: [required('Email'), isEmail],
-  password: [required('Password'), minLength(7)],
-  age: [optionalNumber],
+  password: [required('Password'), minLength(7), maxLength(200)],
+  age: [optionalWholeNumber(150)],
 });
 
 export const RegisterPage = () => {
   const register = useRegister();
-  const { field, handleSubmit } = useForm({ name: '', email: '', password: '', age: '' }, check);
+  const serverErrors = fieldErrors(register.error);
+  const { field, handleSubmit } = useForm(
+    { name: '', email: '', password: '', age: '' },
+    check,
+    serverErrors,
+  );
 
   const subscribe = handleSubmit(({ age, ...rest }) =>
     register.mutate({ ...rest, ...(age ? { age: Number(age) } : {}) }),
@@ -51,7 +57,7 @@ export const RegisterPage = () => {
           {...field('password')}
         />
 
-        {register.isError && (
+        {register.isError && Object.keys(serverErrors).length === 0 && (
           <p className={styles.alert} role="alert">
             {register.error.message}
           </p>

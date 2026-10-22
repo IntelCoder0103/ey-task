@@ -11,11 +11,23 @@ export const useUndoable = (commit: Commit, delayMs: number) => {
     commitRef.current = commit;
   });
 
-  const settle = useCallback((id: string) => {
+  const undo = useCallback((id: string) => {
     clearTimeout(timers.current.get(id));
     timers.current.delete(id);
     setPending((ids) => ids.filter((candidate) => candidate !== id));
   }, []);
+
+  const commitNow = useCallback(
+    (id: string) => {
+      clearTimeout(timers.current.get(id));
+      timers.current.delete(id);
+      return commitRef
+        .current(id)
+        .catch(() => null)
+        .finally(() => undo(id));
+    },
+    [undo],
+  );
 
   const schedule = useCallback(
     (id: string) => {
@@ -23,16 +35,15 @@ export const useUndoable = (commit: Commit, delayMs: number) => {
       setPending((ids) => [...ids, id]);
       timers.current.set(
         id,
-        setTimeout(() => {
-          timers.current.delete(id);
-          commitRef
-            .current(id)
-            .catch(() => null)
-            .finally(() => settle(id));
-        }, delayMs),
+        setTimeout(() => commitNow(id), delayMs),
       );
     },
-    [delayMs, settle],
+    [delayMs, commitNow],
+  );
+
+  const flush = useCallback(
+    () => Promise.all([...timers.current.keys()].map(commitNow)).then(() => undefined),
+    [commitNow],
   );
 
   useEffect(() => {
@@ -46,5 +57,5 @@ export const useUndoable = (commit: Commit, delayMs: number) => {
     };
   }, []);
 
-  return { pending, schedule, undo: settle };
+  return { pending, schedule, undo, flush };
 };

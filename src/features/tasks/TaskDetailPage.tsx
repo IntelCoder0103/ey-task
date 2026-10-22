@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useId, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { isApiError } from '../../api/http';
 import type { Task } from '../../api/schemas';
@@ -6,7 +6,8 @@ import { formatDate, pad2 } from '../../lib/format';
 import { Button } from '../../ui/Button';
 import { ErrorPanel } from '../../ui/ErrorPanel';
 import { PageLoader } from '../../ui/PageLoader';
-import { useDeleteTask, useTask, useTaskList, useUpdateTask } from './queries';
+import { usePendingDeletes } from './pendingDeletes';
+import { useTask, useTaskList, useUpdateTask } from './queries';
 import styles from './TaskDetailPage.module.css';
 
 const BackLink = () => (
@@ -18,6 +19,7 @@ const BackLink = () => (
 type EditorProps = { initial: string; onSave: (description: string) => void; onCancel: () => void };
 
 const CopyEditor = ({ initial, onSave, onCancel }: EditorProps) => {
+  const id = useId();
   const [text, setText] = useState(initial);
   const description = text.trim();
 
@@ -33,11 +35,11 @@ const CopyEditor = ({ initial, onSave, onCancel }: EditorProps) => {
 
   return (
     <form className={styles.editor} onSubmit={save}>
-      <label htmlFor="copy" className="sr-only">
+      <label htmlFor={id} className="sr-only">
         Task description
       </label>
       <textarea
-        id="copy"
+        id={id}
         className={styles.textarea}
         value={text}
         maxLength={240}
@@ -82,7 +84,7 @@ const TaskDetail = () => {
   const detail = useTask(id);
   const { data: tasks = [] } = useTaskList();
   const update = useUpdateTask();
-  const remove = useDeleteTask();
+  const deletes = usePendingDeletes();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -109,7 +111,7 @@ const TaskDetail = () => {
     update.mutate({ id: task.id, patch: change });
 
   const discard = () => {
-    remove.mutate(task.id);
+    deletes.schedule(task.id);
     navigate('/', { replace: true });
   };
 

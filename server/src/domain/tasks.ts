@@ -50,17 +50,20 @@ export const removeTask = (tasks: Task[], removed: Task) =>
     );
 
 export const reorderTasks = (tasks: Task[], owner: string, ids: string[]) => {
-  const rank = new Map(ids.map((id, index) => [id, index]));
+  const listed = new Set(ids);
+  const unlisted = tasks
+    .filter((task) => task.owner === owner && !listed.has(task.id))
+    .sort(byPosition)
+    .map((task) => task.id);
+  const rank = new Map([...ids, ...unlisted].map((id, index) => [id, index]));
   return tasks.map((task) =>
     task.owner === owner ? { ...task, position: rank.get(task.id) ?? task.position } : task,
   );
 };
 
-export const isPermutationOf = (ids: string[], owned: Task[]) => {
-  const unique = new Set(ids);
-  return (
-    unique.size === ids.length && ids.length === owned.length && owned.every((task) => unique.has(task.id))
-  );
+export const isOrderOf = (ids: string[], owned: Task[]) => {
+  const ownedIds = new Set(owned.map((task) => task.id));
+  return new Set(ids).size === ids.length && ids.every((id) => ownedIds.has(id));
 };
 
 export const toPublicTask = ({ id, description, completed, position, createdAt, updatedAt }: Task) => ({

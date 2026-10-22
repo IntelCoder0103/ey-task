@@ -73,6 +73,26 @@ describe('register', () => {
     expect(screen.getByText('Enter a whole number.')).toBeInTheDocument();
   });
 
+  it('shows server validation errors next to the matching field', async () => {
+    network.use(
+      http.post(`${apiBase}/auth/register`, () =>
+        HttpResponse.json(
+          { error: 'Email is invalid.', details: [{ path: 'email', message: 'Email is invalid.' }] },
+          { status: 400 },
+        ),
+      ),
+    );
+    const { user } = renderApp('/register');
+    await user.type(screen.getByLabelText('Name'), 'Ines');
+    await user.type(screen.getByLabelText('Email'), 'ines@atelier.studio');
+    await user.type(screen.getByLabelText('Password'), 'seamstress');
+    await user.click(screen.getByRole('button', { name: /subscribe/i }));
+
+    expect(await screen.findByText('Email is invalid.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Email')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('creates an account and opens an empty edit', async () => {
     const { user } = renderApp('/register');
     await user.type(screen.getByLabelText('Name'), 'Ines Duarte');

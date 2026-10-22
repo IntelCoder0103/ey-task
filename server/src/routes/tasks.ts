@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
   findOwned,
-  isPermutationOf,
+  isOrderOf,
   nextPosition,
   ownedBy,
   patchTask,
@@ -84,8 +84,8 @@ export const taskRoutes = ({ store, now }: { store: Store; now: () => Date }) =>
       route({ body: Order }, ({ body }, res) =>
         store.update((state) => {
           const owner = authOf(res).user.id;
-          if (!isPermutationOf(body.ids, state.tasks.filter(ownedBy(owner)))) {
-            throw httpError(400, 'ids must list every task exactly once.');
+          if (!isOrderOf(body.ids, state.tasks.filter(ownedBy(owner)))) {
+            throw httpError(400, 'ids must be your own tasks, each listed once.');
           }
           const tasks = reorderTasks(state.tasks, owner, body.ids);
           return [{ ...state, tasks }, reply.ok(page(tasks, owner))] as const;

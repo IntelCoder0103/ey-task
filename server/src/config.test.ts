@@ -30,6 +30,11 @@ describe('readConfig', () => {
     });
   });
 
+  it('does not seed the demo account in production unless asked to', () => {
+    expect(readConfig({ NODE_ENV: 'production' }).seedDemo).toBe(false);
+    expect(readConfig({ NODE_ENV: 'production', SEED_DEMO: 'true' }).seedDemo).toBe(true);
+  });
+
   it('rejects invalid values at boot', () => {
     expect(() => readConfig({ BCRYPT_ROUNDS: '2' })).toThrow();
   });

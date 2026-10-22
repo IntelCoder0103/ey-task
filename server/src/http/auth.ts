@@ -8,10 +8,10 @@ export type Auth = { user: User; tokenHash: string };
 
 type Options = { store: Store; sessionTtlMs: number; now: () => Date };
 
-const bearer = (header = '') => {
-  const [scheme, token] = header.split(' ');
-  return scheme === 'Bearer' && token ? token : null;
-};
+const bearer = (header = '') => /^Bearer\s+(\S+)$/i.exec(header.trim())?.[1] ?? null;
+
+export const isLive = (createdAt: string, sessionTtlMs: number, now: Date) =>
+  Date.parse(createdAt) + sessionTtlMs > now.getTime();
 
 export const requireAuth =
   ({ store, sessionTtlMs, now }: Options): RequestHandler =>
@@ -22,8 +22,10 @@ export const requireAuth =
     const tokenHash = digest(token);
     const { sessions, users } = store.read();
     const session = sessions.find((candidate) => candidate.tokenHash === tokenHash);
-    const live = session && Date.parse(session.createdAt) + sessionTtlMs > now().getTime();
-    const user = live ? users.find((candidate) => candidate.id === session.userId) : undefined;
+    const user =
+      session && isLive(session.createdAt, sessionTtlMs, now())
+        ? users.find((candidate) => candidate.id === session.userId)
+        : undefined;
     if (!user) throw httpError(401, 'Your session has expired. Please sign in again.');
 
     res.locals.auth = { user, tokenHash } satisfies Auth;

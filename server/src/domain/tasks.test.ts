@@ -1,7 +1,7 @@
 import type { Task } from './types';
 import {
   allOf,
-  isPermutationOf,
+  isOrderOf,
   matches,
   nextPosition,
   queryTasks,
@@ -79,12 +79,22 @@ describe('positions', () => {
     ]);
   });
 
-  it('accepts only exact permutations of the owner’s ids', () => {
+  it('keeps unlisted tasks after the listed ones, in their current order', () => {
+    expect(reorderTasks(tasks, 'ana', ['b']).map((t) => [t.id, t.position])).toEqual([
+      ['c', 2],
+      ['a', 1],
+      ['b', 0],
+      ['x', 0],
+    ]);
+  });
+
+  it('accepts the owner’s own ids, each at most once', () => {
     const owned = tasks.filter((t) => t.owner === 'ana');
-    expect(isPermutationOf(['b', 'c', 'a'], owned)).toBe(true);
-    expect(isPermutationOf(['b', 'c'], owned)).toBe(false);
-    expect(isPermutationOf(['b', 'b', 'c'], owned)).toBe(false);
-    expect(isPermutationOf(['b', 'c', 'x'], owned)).toBe(false);
+    expect(isOrderOf(['b', 'c', 'a'], owned)).toBe(true);
+    expect(isOrderOf(['b', 'c'], owned)).toBe(true);
+    expect(isOrderOf(['b', 'b', 'c'], owned)).toBe(false);
+    expect(isOrderOf(['b', 'c', 'x'], owned)).toBe(false);
+    expect(isOrderOf(['draft-1'], owned)).toBe(false);
   });
 });
 

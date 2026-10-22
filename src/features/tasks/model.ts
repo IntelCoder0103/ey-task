@@ -16,7 +16,12 @@ export const updaters = {
       );
   },
   reorder: (tasks: Task[], ids: string[]) => {
-    const rank = new Map(ids.map((id, index) => [id, index]));
+    const listed = new Set(ids);
+    const unlisted = [...tasks]
+      .sort(byPosition)
+      .filter((task) => !listed.has(task.id))
+      .map((task) => task.id);
+    const rank = new Map([...ids, ...unlisted].map((id, index) => [id, index]));
     return tasks.map((task) => ({ ...task, position: rank.get(task.id) ?? task.position })).sort(byPosition);
   },
 };

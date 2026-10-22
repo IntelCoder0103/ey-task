@@ -1,4 +1,4 @@
-import type { State, User } from './types';
+import type { Session, State, User } from './types';
 
 export const findByEmail = (users: User[], email: string) => users.find((user) => user.email === email);
 
@@ -19,4 +19,9 @@ export const addSession = (state: State, userId: string, tokenHash: string, crea
 export const removeSession = (state: State, tokenHash: string): State => ({
   ...state,
   sessions: state.sessions.filter((session) => session.tokenHash !== tokenHash),
+});
+
+export const pruneSessions = (state: State, keep: (session: Session) => boolean): State => ({
+  ...state,
+  sessions: state.sessions.filter(keep),
 });

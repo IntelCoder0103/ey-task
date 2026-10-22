@@ -4,17 +4,23 @@ A full-stack To Do List application. It has a **React + TypeScript web client** 
 Users sign in from a magazine-cover landing page. They manage their tasks ("looks") in **The Edit**, where they can
 search, filter, reorder by drag-and-drop or keyboard, and open each task as a full article page to view or edit it.
 
-| Cover (sign in)                                            | The Edit (list)                                                                | Look (detail)                                               |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------- |
-| Oversized serif wordmark, sticker, cover lines and barcode | Numbered looks, server-side search, hand-drawn strike-through, progress ledger | Headline copy, a hang-tag spec sheet and a "Finished" stamp |
+| Cover (sign in)                                    | The Edit (list)                                      | Look (detail)                                 |
+| -------------------------------------------------- | ---------------------------------------------------- | --------------------------------------------- |
+| ![Sign-in cover](docs/screenshots/sign-in.png)     | ![Task list](docs/screenshots/the-edit.png)          | ![Task detail](docs/screenshots/detail.png)   |
+| Wordmark, sticker, cover lines and a demo shortcut | Numbered looks, search, filters, drag-and-drop order | Inline editing, a hang-tag spec sheet, paging |
+
+<img src="docs/screenshots/phone-search.png" alt="Searching on a phone" width="260" />
+
+The layout is responsive. The phone view above shows a search in progress.
 
 ---
 
 ## Quick start (macOS)
 
 ```bash
-# 1. Node 20+ (skip if `node -v` already prints v20 or newer)
-brew install nvm && nvm install 22 && nvm use 22
+# 1. Node 20 or newer (skip if `node -v` already prints v20+).
+#    Homebrew installs the current release; nvm users can run `nvm use` (see .nvmrc).
+brew install node
 
 # 2. Install and run both apps
 git clone <this repo> atelier && cd atelier
@@ -44,18 +50,19 @@ Data is kept in a named volume.
 
 Run from the repository root. It's an npm workspace: the root package is the web client, and `server/` is the API.
 
-| Command                                                 | What it does                                                                                                                                     |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `npm run dev`                                           | API (`tsx watch`) and web (Vite) together. Vite proxies `/api/*` to the API.                                                                     |
-| `npm run dev:api` / `npm run dev:web`                   | Run either one on its own                                                                                                                        |
-| `npm test`                                              | Vitest workspace (web + server) in watch mode                                                                                                    |
-| `npm run test:coverage`                                 | All 127 tests with coverage. CI fails below 85% lines / 80% branches.                                                                            |
-| `npm run e2e`                                           | Playwright: builds and starts the real API and the production web build, then runs the smoke test (first run: `npx playwright install chromium`) |
-| `npm run lint` / `npm run typecheck` / `npm run format` | ESLint (strict TS, hooks, no `console`, no TODO/FIXME), `tsc -b` across all projects, Prettier                                                   |
-| `npm run build`                                         | Typecheck, web bundle (`dist/`), API bundle (`server/dist/index.js`)                                                                             |
+| Command                                                 | What it does                                                                                                                                                             |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `npm run dev`                                           | API (`tsx watch`) and web (Vite) together. Vite proxies `/api/*` to the API.                                                                                             |
+| `npm run dev:api` / `npm run dev:web`                   | Run either one on its own                                                                                                                                                |
+| `npm test`                                              | Vitest workspace (web + server) in watch mode                                                                                                                            |
+| `npm run test:coverage`                                 | All tests with coverage. CI fails below 85% lines / 80% branches.                                                                                                        |
+| `npm run e2e`                                           | Playwright: builds and starts a separate in-memory API (port 4100) and the production web build, then runs the smoke test (first run: `npx playwright install chromium`) |
+| `npm run lint` / `npm run typecheck` / `npm run format` | ESLint (strict TS, hooks, no `console`, no TODO/FIXME), `tsc -b` across all projects, Prettier (`format:check` in CI)                                                    |
+| `npm run build`                                         | Typecheck, web bundle (`dist/`), API bundle (`server/dist/index.js`)                                                                                                     |
 
-Current numbers: **127 unit, integration and API tests** (35 server, 92 web), about **99% line and 96% branch
-coverage**, plus an end-to-end smoke test (sign in → add → reorder → reload → search → detail → finish → sign out).
+Tests use **Vitest** (Jest-compatible API), **supertest**, **Testing Library** and **Playwright**. At the time of writing
+there are 141 unit, integration and API tests, with about 99% line and 96% branch coverage, plus an end-to-end smoke
+test (sign in → add → reorder → reload → search → detail → finish → sign out).
 
 ### Configuration
 
@@ -64,14 +71,14 @@ coverage**, plus an end-to-end smoke test (sign in → add → reorder → reloa
 | `VITE_API_URL`   | `/api` on the same origin | API base URL when it's hosted elsewhere |
 | `VITE_DEMO_HINT` | `true` in development     | Show the demo-account shortcut          |
 
-| API (runtime)       | Default        | Purpose                                                                           |
-| ------------------- | -------------- | --------------------------------------------------------------------------------- |
-| `PORT`              | `4000`         | HTTP port                                                                         |
-| `DATA_FILE`         | `data/db.json` | JSON storage file. Set it empty for in-memory only.                               |
-| `SEED_DEMO`         | `true`         | Seed the demo account when the store is empty                                     |
-| `CORS_ORIGIN`       | _(none)_       | Comma-separated origins allowed cross-origin (not needed behind the `/api` proxy) |
-| `BCRYPT_ROUNDS`     | `10`           | Password hashing cost                                                             |
-| `SESSION_TTL_HOURS` | `168`          | Session lifetime                                                                  |
+| API (runtime)       | Default                                     | Purpose                                                                           |
+| ------------------- | ------------------------------------------- | --------------------------------------------------------------------------------- |
+| `PORT`              | `4000`                                      | HTTP port                                                                         |
+| `DATA_FILE`         | `data/db.json`                              | JSON storage file. Set it empty for in-memory only.                               |
+| `SEED_DEMO`         | `true` (`false` when `NODE_ENV=production`) | Seed the demo account when the store is empty                                     |
+| `CORS_ORIGIN`       | _(none)_                                    | Comma-separated origins allowed cross-origin (not needed behind the `/api` proxy) |
+| `BCRYPT_ROUNDS`     | `10`                                        | Password hashing cost                                                             |
+| `SESSION_TTL_HOURS` | `168`                                       | Session lifetime                                                                  |
 
 The API validates its environment with zod when it starts. A bad value stops the boot instead of failing later.
 
@@ -79,21 +86,22 @@ The API validates its environment with zod when it starts. A bad value stops the
 
 ## REST API
 
-JSON in and out. Authenticated routes need `Authorization: Bearer <token>`.
+JSON in and out. Authenticated routes need `Authorization: Bearer <token>`. Every route is also served under an
+`/api` prefix (for example `/api/tasks`), so path-preserving proxies such as CloudFront can forward `/api/*` unchanged.
 
-| Method & path                                         | Success                                         | Errors                                        |
-| ----------------------------------------------------- | ----------------------------------------------- | --------------------------------------------- |
-| `POST /auth/register` `{name, email, password, age?}` | `201 {user, token}`                             | `400` validation, `409` email taken           |
-| `POST /auth/login` `{email, password}`                | `200 {user, token}`                             | `400` validation, `401` bad credentials       |
-| `POST /auth/logout`                                   | `204` (revokes this token)                      | `401`                                         |
-| `GET /users/me`                                       | `200 user`                                      | `401`                                         |
-| `GET /tasks?q=&completed=&limit=&skip=`               | `200 {data: Task[], total}` in the user's order | `400` bad query, `401`                        |
-| `POST /tasks` `{description}`                         | `201 Task` (appended to the end)                | `400`, `401`                                  |
-| `GET /tasks/:id`                                      | `200 Task`                                      | `401`, `404`                                  |
-| `PATCH /tasks/:id` `{description?, completed?}`       | `200 Task`                                      | `400` unknown/empty fields, `401`, `404`      |
-| `PUT /tasks/order` `{ids: string[]}`                  | `200 {data, total}`                             | `400` if `ids` isn't exactly the user's tasks |
-| `DELETE /tasks/:id`                                   | `204` (later positions close the gap)           | `401`, `404`                                  |
-| `GET /health`                                         | `200 {status: "ok"}`                            |                                               |
+| Method & path                                         | Success                                                                             | Errors                                   |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------- |
+| `POST /auth/register` `{name, email, password, age?}` | `201 {user, token}`                                                                 | `400` validation, `409` email taken      |
+| `POST /auth/login` `{email, password}`                | `200 {user, token}`                                                                 | `400` validation, `401` bad credentials  |
+| `POST /auth/logout`                                   | `204` (revokes this token)                                                          | `401`                                    |
+| `GET /users/me`                                       | `200 user`                                                                          | `401`                                    |
+| `GET /tasks?q=&completed=&limit=&skip=`               | `200 {data: Task[], total}` in the user's order                                     | `400` bad query, `401`                   |
+| `POST /tasks` `{description}`                         | `201 Task` (appended to the end)                                                    | `400`, `401`                             |
+| `GET /tasks/:id`                                      | `200 Task`                                                                          | `401`, `404`                             |
+| `PATCH /tasks/:id` `{description?, completed?}`       | `200 Task`                                                                          | `400` unknown/empty fields, `401`, `404` |
+| `PUT /tasks/order` `{ids: string[]}`                  | `200 {data, total}`; unlisted tasks keep their relative order after the listed ones | `400` for unknown or repeated ids        |
+| `DELETE /tasks/:id`                                   | `204` (later positions close the gap)                                               | `401`, `404`                             |
+| `GET /health`                                         | `200 {status: "ok"}`                                                                |                                          |
 
 `Task = { id, description, completed, position, createdAt, updatedAt }`. Errors are always `{ error, details? }`,
 where `details` lists each field's validation problem. Another user's task returns **404**, not 403, so the API
@@ -193,8 +201,12 @@ src/                                (React 18 + TypeScript + Vite)
   250 ms, and then the query key changes. TanStack cancels the stale request (an `AbortSignal` passes through the HTTP pipeline)
   and keeps the previous results on screen while the new ones load. Task numbers come from `position`, so a task keeps its
   number in search results. Reordering pauses during a search.
-- **Undoable deletes:** `useUndoable` hides the task, waits five seconds, then commits the `DELETE`. Undo cancels it,
-  and leaving the page flushes any pending deletes.
+- **Undoable deletes:** `useUndoable` hides the task, waits five seconds, then commits the `DELETE`. Undo cancels it.
+  The pending deletes live in a provider around the whole signed-in area, so they work from the list and the detail
+  page, and signing out commits them first. Closing the tab inside the five seconds still drops them (see "More robust").
+- **Ordering is forgiving.** `PUT /tasks/order` accepts any duplicate-free list of the user's own ids. A client
+  working from a slightly stale list (a task just added in another tab, or a draft still being saved) therefore can't
+  fail the request, and the client never sends draft ids.
 - **Real full-stack tests.** The web integration tests start the **real Express app** in-process. MSW only bridges
   jsdom's `/api` origin to it, and can inject faults (500s, revoked tokens) for a single test. No logic is mocked.
 
@@ -213,8 +225,9 @@ phone to desktop. All motion is disabled under `prefers-reduced-motion`.
 ### Approach
 
 1. **Contract first.** I designed a small REST API around the UX requirements: user-scoped tasks, server-owned order, and
-   search. Then I wrote the server **test-first**: pure domain functions, then the store and its write queue, then the HTTP
-   behaviour with supertest. The tests drove the implementation from red to green.
+   search. Then I built the server **test-first**: pure domain functions, then the store and its write queue, then the
+   HTTP behaviour with supertest, each time writing failing specs before the code. The server landed as a single commit,
+   so the history doesn't show the individual red/green steps. The test files themselves read as the specification.
 2. **Layered both sides the same way:** pure logic, then an I/O boundary (store / HTTP client), then thin adapters (routes / hooks),
    then presentation. Each layer can be tested without the next.
 3. **The client is built on a validated boundary.** Every response is parsed with zod, so contract drift fails loudly.
@@ -222,6 +235,10 @@ phone to desktop. All motion is disabled under `prefers-reduced-motion`.
    the production build against the real server.
 5. **Checked the UI in a browser** at desktop and phone widths. That caught and fixed a strike-through rendering bug on wrapped
    lines and drag handles that stayed visible during search.
+6. **Reviewed it against the brief** and hardened it. Examples: a forgiving reorder contract, clearing the cache when a
+   different user signs in, committing pending deletes before sign-out, pruning expired sessions, matching client and
+   server validation (with server errors shown next to the matching field), and retrying atomic file renames on Windows,
+   where antivirus briefly locks new files.
 
 ### Features completed
 
@@ -250,6 +267,8 @@ phone to desktop. All motion is disabled under `prefers-reduced-motion`.
 
 - **Auth:** httpOnly, `SameSite` cookies instead of bearer tokens in `localStorage`. Rate limiting and lockout on
   login. Refresh tokens and a "sign out everywhere" option.
+- **Pending deletes on tab close:** send them with `fetch(..., { keepalive: true })` from a `pagehide` handler, or move
+  to a soft-delete column with server-side undo.
 - **Data:** a real database with transactions and indexes. Optimistic concurrency (`If-Match`/`updatedAt`) so
   concurrent edits on two devices don't silently overwrite each other. Backups.
 - **Observability:** structured request logs with request ids (pino), metrics, error tracking with source maps (Sentry), and
