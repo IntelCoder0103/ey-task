@@ -1,16 +1,19 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { session } from '../api/session';
-import { db, server } from '../mocks/server';
+import { backend, network } from './network';
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+beforeAll(() => network.listen({ onUnhandledRequest: 'error' }));
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
-  server.resetHandlers();
-  db.reset();
+  network.resetHandlers();
   session.clear();
   localStorage.clear();
+  await backend.reset();
 });
 
-afterAll(() => server.close());
+afterAll(async () => {
+  network.close();
+  await backend.close();
+});

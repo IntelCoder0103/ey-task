@@ -1,8 +1,8 @@
 import { http, HttpResponse } from 'msw';
-import { DEMO } from '../mocks/db';
-import { server } from '../mocks/server';
-import { apiBase } from './config';
+import { DEMO } from '../demo';
+import { network } from '../test/network';
 import { authApi, tasksApi } from './client';
+import { apiBase } from './config';
 import { session } from './session';
 
 const signIn = async () => {
@@ -23,27 +23,25 @@ describe('authApi', () => {
     expect(session.get()).toBeNull();
   });
 
-  it('rejects bad credentials with the server message', async () => {
+  it('rejects bad credentials with 401 and the server message', async () => {
     await expect(authApi.login({ email: DEMO.email, password: 'wrong' })).rejects.toMatchObject({
-      status: 400,
-      message: 'Unable to login',
+      status: 401,
+      message: 'Invalid email or password.',
     });
   });
 
-  it('registers a new user and rejects duplicates', async () => {
+  it('registers a new user and rejects duplicates with 409', async () => {
     const registration = { name: 'Ines', email: 'ines@atelier.studio', password: 'seamstress', age: 31 };
     await expect(authApi.register(registration)).resolves.toMatchObject({ user: { name: 'Ines' } });
-    await expect(authApi.register(registration)).rejects.toMatchObject({ status: 400 });
+    await expect(authApi.register(registration)).rejects.toMatchObject({ status: 409 });
   });
 
   it.each([
-    [{ name: '', email: 'a@b.co', password: 'longenough' }, 'name'],
-    [{ name: 'A', email: 'nope', password: 'longenough' }, 'Email'],
-    [{ name: 'A', email: 'a@b.co', password: 'short' }, '7 characters'],
-    [{ name: 'A', email: 'a@b.co', password: 'mypassword1' }, '"password"'],
-  ])('validates registrations (%o)', async (registration, fragment) => {
-    const error = await authApi.register(registration).catch((e: Error) => e);
-    expect((error as Error).message).toContain(fragment);
+    [{ name: '', email: 'a@b.co', password: 'longenough' }, 'Name is required.'],
+    [{ name: 'A', email: 'nope', password: 'longenough' }, 'Email is invalid.'],
+    [{ name: 'A', email: 'a@b.co', password: 'short' }, 'Password must be at least 7 characters.'],
+  ])('surfaces server validation (%o)', async (registration, message) => {
+    await expect(authApi.register(registration)).rejects.toMatchObject({ status: 400, message });
   });
 });
 
@@ -53,31 +51,52 @@ describe('tasksApi', () => {
   it('runs the full CRUD cycle', async () => {
     const before = await tasksApi.list();
     const created = await tasksApi.create('Steam the silk blouse');
-    expect(created).toMatchObject({ description: 'Steam the silk blouse', completed: false });
+    expect(created).toMatchObject({
+      description: 'Steam the silk blouse',
+      completed: false,
+      position: before.length,
+    });
 
-    await expect(tasksApi.get(created._id)).resolves.toEqual(created);
-    await expect(tasksApi.update(created._id, { completed: true })).resolves.toMatchObject({
+    await expect(tasksApi.get(created.id)).resolves.toEqual(created);
+    await expect(tasksApi.update(created.id, { completed: true })).resolves.toMatchObject({
       completed: true,
     });
     await expect(tasksApi.list()).resolves.toHaveLength(before.length + 1);
 
-    await expect(tasksApi.remove(created._id)).resolves.toBe(created._id);
-    await expect(tasksApi.get(created._id)).rejects.toMatchObject({ status: 404 });
+    await expect(tasksApi.remove(created.id)).resolves.toBe(created.id);
+    await expect(tasksApi.get(created.id)).rejects.toMatchObject({ status: 404 });
   });
 
-  it('rejects updates to fields the API does not allow', async () => {
+  it('searches on the server', async () => {
+    const found = await tasksApi.list({ q: 'tailor' });
+    expect(found.map((task) => task.description)).toEqual(['Call the tailor about the trouser hem']);
+  });
+
+  it('persists a new order', async () => {
+    const ids = (await tasksApi.list()).map((task) => task.id);
+    const reversed = [...ids].reverse();
+    await expect(tasksApi.reorder(reversed)).resolves.toMatchObject(
+      reversed.map((id, position) => ({ id, position })),
+    );
+    expect((await tasksApi.list()).map((task) => task.id)).toEqual(reversed);
+  });
+
+  it('rejects fields the API does not allow', async () => {
     const [first] = await tasksApi.list();
     await expect(
-      tasksApi.update(first!._id, { owner: 'someone-else' } as unknown as { completed: boolean }),
-    ).rejects.toMatchObject({ message: 'Invalid updates!' });
+      tasksApi.update(first!.id, { owner: 'someone-else' } as unknown as { completed: boolean }),
+    ).rejects.toMatchObject({ status: 400 });
   });
 
   it('rejects empty descriptions', async () => {
-    await expect(tasksApi.create('   ')).rejects.toMatchObject({ status: 400 });
+    await expect(tasksApi.create('   ')).rejects.toMatchObject({
+      status: 400,
+      message: 'Description is required.',
+    });
   });
 
   it('ends the session when the server revokes the token', async () => {
-    server.use(http.get(`${apiBase}/task`, () => HttpResponse.json({}, { status: 401 })));
+    network.use(http.get(`${apiBase}/tasks`, () => HttpResponse.json({}, { status: 401 })));
     await expect(tasksApi.list()).rejects.toMatchObject({ status: 401 });
     expect(session.get()).toBeNull();
   });

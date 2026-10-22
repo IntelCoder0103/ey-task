@@ -1,10 +1,24 @@
 import type { Task, TaskPatch } from '../../api/schemas';
+import { by } from '../../lib/fp';
+
+const byPosition = by((task: Task) => task.position);
 
 export const updaters = {
   add: (tasks: Task[], task: Task) => [...tasks, task],
   patch: (tasks: Task[], { id, patch }: { id: string; patch: TaskPatch }) =>
-    tasks.map((task) => (task._id === id ? { ...task, ...patch } : task)),
-  remove: (tasks: Task[], id: string) => tasks.filter((task) => task._id !== id),
+    tasks.map((task) => (task.id === id ? { ...task, ...patch } : task)),
+  remove: (tasks: Task[], id: string) => {
+    const removed = tasks.find((task) => task.id === id);
+    return tasks
+      .filter((task) => task.id !== id)
+      .map((task) =>
+        removed && task.position > removed.position ? { ...task, position: task.position - 1 } : task,
+      );
+  },
+  reorder: (tasks: Task[], ids: string[]) => {
+    const rank = new Map(ids.map((id, index) => [id, index]));
+    return tasks.map((task) => ({ ...task, position: rank.get(task.id) ?? task.position })).sort(byPosition);
+  },
 };
 
 const predicates = {
@@ -33,15 +47,16 @@ export const tally = (tasks: Task[]) =>
 
 const DRAFT_PREFIX = 'draft-';
 
-export const draftTask = (description: string): Task => {
+export const draftTask = (description: string, position: number): Task => {
   const now = new Date().toISOString();
   return {
-    _id: `${DRAFT_PREFIX}${Date.now().toString(36)}`,
+    id: `${DRAFT_PREFIX}${crypto.randomUUID()}`,
     description: description.trim(),
     completed: false,
+    position,
     createdAt: now,
     updatedAt: now,
   };
 };
 
-export const isDraft = (task: Task) => task._id.startsWith(DRAFT_PREFIX);
+export const isDraft = (task: Task) => task.id.startsWith(DRAFT_PREFIX);

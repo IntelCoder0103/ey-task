@@ -6,9 +6,8 @@ import { formatDate, pad2 } from '../../lib/format';
 import { Button } from '../../ui/Button';
 import { ErrorPanel } from '../../ui/ErrorPanel';
 import { PageLoader } from '../../ui/PageLoader';
-import { useDeleteTask, useTask, useUpdateTask } from './queries';
+import { useDeleteTask, useTask, useTaskList, useUpdateTask } from './queries';
 import styles from './TaskDetailPage.module.css';
-import { useOrderedTasks } from './useOrderedTasks';
 
 const BackLink = () => (
   <Link to="/" className={styles.back}>
@@ -62,7 +61,7 @@ const CopyEditor = ({ initial, onSave, onCancel }: EditorProps) => {
 const Pager = ({ previous, next }: { previous?: Task; next?: Task }) => (
   <nav className={styles.pager} aria-label="More looks">
     {previous ? (
-      <Link to={`/tasks/${previous._id}`} className={styles.page}>
+      <Link to={`/tasks/${previous.id}`} className={styles.page}>
         <span className={styles.pageLabel}>← Previous look</span>
         <span className={styles.pageTitle}>{previous.description}</span>
       </Link>
@@ -70,7 +69,7 @@ const Pager = ({ previous, next }: { previous?: Task; next?: Task }) => (
       <span />
     )}
     {next && (
-      <Link to={`/tasks/${next._id}`} className={`${styles.page} ${styles.nextPage}`}>
+      <Link to={`/tasks/${next.id}`} className={`${styles.page} ${styles.nextPage}`}>
         <span className={styles.pageLabel}>Next look →</span>
         <span className={styles.pageTitle}>{next.description}</span>
       </Link>
@@ -81,7 +80,7 @@ const Pager = ({ previous, next }: { previous?: Task; next?: Task }) => (
 const TaskDetail = () => {
   const { id = '' } = useParams();
   const detail = useTask(id);
-  const { tasks } = useOrderedTasks();
+  const { data: tasks = [] } = useTaskList();
   const update = useUpdateTask();
   const remove = useDeleteTask();
   const navigate = useNavigate();
@@ -105,12 +104,12 @@ const TaskDetail = () => {
   }
 
   const task = detail.data;
-  const index = tasks.findIndex(({ _id }) => _id === task._id);
+  const index = tasks.findIndex(({ id }) => id === task.id);
   const patch = (change: Partial<Pick<Task, 'description' | 'completed'>>) =>
-    update.mutate({ id: task._id, patch: change });
+    update.mutate({ id: task.id, patch: change });
 
   const discard = () => {
-    remove.mutate(task._id);
+    remove.mutate(task.id);
     navigate('/', { replace: true });
   };
 
@@ -119,7 +118,7 @@ const TaskDetail = () => {
       <BackLink />
 
       <p className={styles.kicker}>
-        Look Nº {pad2(index + 1 || 1)}
+        Look Nº {pad2(task.position + 1)}
         {tasks.length > 0 && <span> of {pad2(tasks.length)}</span>}
       </p>
 
@@ -183,7 +182,7 @@ const TaskDetail = () => {
           <dl>
             <div>
               <dt>Style Nº</dt>
-              <dd>{task._id.slice(-6).toUpperCase()}</dd>
+              <dd>{task.id.slice(-6).toUpperCase()}</dd>
             </div>
             <div>
               <dt>Status</dt>

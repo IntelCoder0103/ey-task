@@ -7,8 +7,13 @@ const copy: Record<Filter, [string, string]> = {
   done: ['Nothing finished — yet.', 'The season is young. Tick one off and it will appear here.'],
 };
 
-export const EmptyState = ({ filter }: { filter: Filter }) => {
-  const [title, body] = copy[filter];
+const searchCopy = (query: string): [string, string] => [
+  `Nothing matches “${query}”.`,
+  'Try another word, or clear the search to see the whole edit.',
+];
+
+export const EmptyState = ({ filter, query = '' }: { filter: Filter; query?: string }) => {
+  const [title, body] = query ? searchCopy(query) : copy[filter];
   return (
     <div className={styles.empty}>
       <svg className={styles.hanger} viewBox="0 0 120 70" aria-hidden="true">

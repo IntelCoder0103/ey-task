@@ -11,20 +11,23 @@ import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrate
 import type { CSSProperties } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { Task } from '../../api/schemas';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useUndoable } from '../../hooks/useUndoable';
 import { formatDate } from '../../lib/format';
+import { move } from '../../lib/order';
 import { ErrorPanel } from '../../ui/ErrorPanel';
 import { EmptyState } from './EmptyState';
 import { FilterTabs } from './FilterTabs';
-import { filterFor, parseFilter, tally } from './model';
+import { filterFor, parseFilter, tally, type Filter } from './model';
 import { NewTaskForm } from './NewTaskForm';
-import { useCreateTask, useDeleteTask, useUpdateTask } from './queries';
+import { useCreateTask, useDeleteTask, useReorderTasks, useTaskList, useUpdateTask } from './queries';
+import { SearchField } from './SearchField';
 import { TaskRow } from './TaskRow';
 import styles from './TaskListPage.module.css';
 import { UndoSlips } from './UndoSlips';
-import { useOrderedTasks } from './useOrderedTasks';
 
 export const UNDO_MS = 5000;
+export const SEARCH_DEBOUNCE_MS = 250;
 
 const Skeleton = () => (
   <ol className={styles.skeleton} aria-label="Loading tasks">
@@ -34,14 +37,38 @@ const Skeleton = () => (
   </ol>
 );
 
+const useListParams = () => {
+  const [params, setParams] = useSearchParams();
+  const set = (key: string, value: string) =>
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (value) next.set(key, value);
+        else next.delete(key);
+        return next;
+      },
+      { replace: true },
+    );
+  return {
+    filter: parseFilter(params.get('view')),
+    query: params.get('q') ?? '',
+    setFilter: (filter: Filter) => set('view', filter === 'all' ? '' : filter),
+    setQuery: (query: string) => set('q', query),
+  };
+};
+
 export const TaskListPage = () => {
-  const { tasks, reorder, isPending, isError, error, refetch } = useOrderedTasks();
+  const { filter, query, setFilter, setQuery } = useListParams();
+  const search = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS);
+  const searching = search.length > 0;
+
+  const collection = useTaskList();
+  const results = useTaskList(search);
   const create = useCreateTask();
   const update = useUpdateTask();
   const remove = useDeleteTask();
+  const reorder = useReorderTasks();
   const removal = useUndoable(remove.mutateAsync, UNDO_MS);
-  const [params, setParams] = useSearchParams();
-  const filter = parseFilter(params.get('view'));
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -49,18 +76,24 @@ export const TaskListPage = () => {
   );
 
   const hidden = new Set(removal.pending);
-  const live = tasks.filter((task) => !hidden.has(task._id));
-  const numbers = new Map(live.map((task, index) => [task._id, index + 1]));
-  const visible = live.filter(filterFor(filter));
-  const counts = tally(live);
+  const isLive = (task: Task) => !hidden.has(task.id);
+  const everything = (collection.data ?? []).filter(isLive);
+  const found = (results.data ?? []).filter(isLive);
+  const visible = found.filter(filterFor(filter));
+  const counts = tally(everything);
   const progress = counts.all ? counts.done / counts.all : 0;
-  const failure = [create, update, remove].find((mutation) => mutation.isError)?.error;
+  const failure = [create, update, remove, reorder].find((mutation) => mutation.isError)?.error;
 
-  const onDragEnd = ({ active, over }: DragEndEvent) => {
-    if (over) reorder(String(active.id), String(over.id));
+  const moveTask = (activeId: string, overId: string) => {
+    const ids = (collection.data ?? []).map((task) => task.id);
+    const next = move(ids, activeId, overId);
+    if (next !== ids) reorder.mutate(next);
   };
-  const toggle = (task: Task) => update.mutate({ id: task._id, patch: { completed: !task.completed } });
-  const neighbour = (index: number) => visible[index]?._id;
+  const onDragEnd = ({ active, over }: DragEndEvent) => {
+    if (over) moveTask(String(active.id), String(over.id));
+  };
+  const toggle = (task: Task) => update.mutate({ id: task.id, patch: { completed: !task.completed } });
+  const neighbour = (index: number) => (searching ? undefined : visible[index]?.id);
 
   return (
     <main className={styles.page}>
@@ -103,11 +136,13 @@ export const TaskListPage = () => {
 
       <NewTaskForm nextNumber={counts.all + 1} onAdd={(description) => create.mutate(description)} />
 
-      <FilterTabs
-        active={filter}
-        counts={counts}
-        onChange={(next) => setParams(next === 'all' ? {} : { view: next }, { replace: true })}
+      <SearchField
+        value={query}
+        busy={query.trim() !== search || (results.isFetching && results.isPlaceholderData)}
+        onChange={setQuery}
       />
+
+      <FilterTabs active={filter} counts={tally(found)} sortable={!searching} onChange={setFilter} />
 
       {failure && (
         <p className={styles.alert} role="alert">
@@ -115,26 +150,29 @@ export const TaskListPage = () => {
         </p>
       )}
 
-      {isPending && <Skeleton />}
-      {isError && <ErrorPanel error={error} title="The rail is empty." onRetry={() => refetch()} />}
-      {!isPending && !isError && visible.length === 0 && <EmptyState filter={filter} />}
+      {results.isPending && <Skeleton />}
+      {results.isError && (
+        <ErrorPanel error={results.error} title="The rail is empty." onRetry={() => results.refetch()} />
+      )}
+      {results.isSuccess && visible.length === 0 && <EmptyState filter={filter} query={search} />}
 
       {visible.length > 0 && (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-          <SortableContext items={visible.map((task) => task._id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={visible.map((task) => task.id)} strategy={verticalListSortingStrategy}>
             <ol className={styles.list} aria-label="Tasks">
               {visible.map((task, index) => {
                 const above = neighbour(index - 1);
                 const below = neighbour(index + 1);
                 return (
                   <TaskRow
-                    key={task._id}
+                    key={task.id}
                     task={task}
-                    number={numbers.get(task._id) ?? index + 1}
+                    number={task.position + 1}
+                    sortable={!searching}
                     onToggle={toggle}
-                    onRemove={({ _id }) => removal.schedule(_id)}
-                    onMoveUp={above ? () => reorder(task._id, above) : undefined}
-                    onMoveDown={below ? () => reorder(task._id, below) : undefined}
+                    onRemove={({ id }) => removal.schedule(id)}
+                    onMoveUp={above ? () => moveTask(task.id, above) : undefined}
+                    onMoveDown={below ? () => moveTask(task.id, below) : undefined}
                   />
                 );
               })}
@@ -144,7 +182,7 @@ export const TaskListPage = () => {
       )}
 
       <UndoSlips
-        tasks={tasks.filter((task) => hidden.has(task._id))}
+        tasks={(collection.data ?? []).filter((task) => hidden.has(task.id))}
         delayMs={UNDO_MS}
         onUndo={removal.undo}
       />

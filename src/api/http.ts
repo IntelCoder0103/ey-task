@@ -9,11 +9,17 @@ export const apiError = (status: number, message: string): ApiError =>
 export const isApiError = (error: unknown): error is ApiError =>
   error instanceof Error && error.name === 'ApiError';
 
-type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
+type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 type Query = Record<string, string | number | boolean | undefined>;
-type Init = { method: Method; headers: Record<string, string>; body?: string };
+type Init = { method: Method; headers: Record<string, string>; body?: string; signal?: AbortSignal };
 
-export type RequestOptions<T> = { method?: Method; body?: unknown; query?: Query; schema: ZodType<T> };
+export type RequestOptions<T> = {
+  method?: Method;
+  body?: unknown;
+  query?: Query;
+  signal?: AbortSignal;
+  schema: ZodType<T>;
+};
 
 export type HttpConfig = {
   baseUrl: string;
@@ -57,6 +63,11 @@ const withJson =
           body: JSON.stringify(body),
         };
 
+const withSignal =
+  (signal?: AbortSignal) =>
+  (init: Init): Init =>
+    signal ? { ...init, signal } : init;
+
 const toUrl = (baseUrl: string, path: string, query: Query = {}) => {
   const params = new URLSearchParams(
     Object.entries(query).flatMap(([key, value]) => (value === undefined ? [] : [[key, String(value)]])),
@@ -80,13 +91,13 @@ export const createHttp = ({
   onUnauthorized,
   fetch = (url, init) => globalThis.fetch(url, init),
 }: HttpConfig): Http => {
-  return <T>(path: string, { method = 'GET', body, query, schema }: RequestOptions<T>) => {
+  return <T>(path: string, { method = 'GET', body, query, signal, schema }: RequestOptions<T>) => {
     const token = getToken();
-    const init = pipe(withAuth(token), withJson(body))({ method, headers: {} });
+    const init = pipe(withAuth(token), withJson(body), withSignal(signal))({ method, headers: {} });
 
     const send = (url: string) =>
-      fetch(url, init).catch(() => {
-        throw apiError(0, fallbackMessage(0));
+      fetch(url, init).catch((error: unknown) => {
+        throw signal?.aborted ? error : apiError(0, fallbackMessage(0));
       });
 
     const assertOk = async (response: Response) => {

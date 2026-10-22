@@ -37,6 +37,10 @@
   touch-action: none;
 }
 
+.handle[hidden] {
+  visibility: hidden;
+}
+
 .handle svg {
   width: 10px;
   height: 16px;

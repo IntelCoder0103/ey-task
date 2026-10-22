@@ -1,21 +1,23 @@
 import { act, renderHook } from '@testing-library/react';
-import { usePersistentState } from './usePersistentState';
+import { useDebouncedValue } from './useDebouncedValue';
 import { useUndoable } from './useUndoable';
 
-describe('usePersistentState', () => {
-  it('reads, writes and follows key changes', () => {
-    localStorage.setItem('order:1', JSON.stringify(['a']));
-    const { result, rerender } = renderHook(({ key }) => usePersistentState<string[]>(key, []), {
-      initialProps: { key: 'order:1' },
+describe('useDebouncedValue', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('only settles on the latest value once input pauses', () => {
+    const { result, rerender } = renderHook(({ value }) => useDebouncedValue(value, 200), {
+      initialProps: { value: 'l' },
     });
-    expect(result.current[0]).toEqual(['a']);
+    rerender({ value: 'li' });
+    act(() => vi.advanceTimersByTime(150));
+    rerender({ value: 'lin' });
+    act(() => vi.advanceTimersByTime(150));
+    expect(result.current).toBe('l');
 
-    act(() => result.current[1](['b', 'a']));
-    expect(result.current[0]).toEqual(['b', 'a']);
-    expect(localStorage.getItem('order:1')).toBe('["b","a"]');
-
-    rerender({ key: 'order:2' });
-    expect(result.current[0]).toEqual([]);
+    act(() => vi.advanceTimersByTime(50));
+    expect(result.current).toBe('lin');
   });
 });
 

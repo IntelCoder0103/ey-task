@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { usingMock } from '../../api/config';
-import { DEMO } from '../../mocks/demo';
+import { showDemoHint } from '../../api/config';
+import { DEMO } from '../../demo';
 import { isEmail, required, validate } from '../../lib/validation';
 import { Button } from '../../ui/Button';
 import { Field } from '../../ui/Field';
@@ -25,7 +25,7 @@ export const SignInPage = () => {
           </h2>
         </header>
 
-        {usingMock && (
+        {showDemoHint && (
           <aside className={styles.demo}>
             <span>
               <strong>Preview edition</strong>

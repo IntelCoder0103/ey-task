@@ -2,8 +2,8 @@ import { screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { apiBase } from '../../api/config';
 import { session } from '../../api/session';
-import { DEMO } from '../../mocks/demo';
-import { server } from '../../mocks/server';
+import { DEMO } from '../../demo';
+import { network } from '../../test/network';
 import { renderApp, signInAsDemo } from '../../test/renderApp';
 
 describe('sign in', () => {
@@ -25,7 +25,7 @@ describe('sign in', () => {
     await user.type(screen.getByLabelText('Email'), DEMO.email);
     await user.type(screen.getByLabelText('Password'), 'not-it');
     await user.click(screen.getByRole('button', { name: /enter the studio/i }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Unable to login');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Invalid email or password.');
   });
 
   it('signs in with the demo shortcut and lands on the edit', async () => {
@@ -54,7 +54,7 @@ describe('sign in', () => {
 
   it('offers a retry when the profile cannot load', async () => {
     await signInAsDemo();
-    server.use(http.get(`${apiBase}/user/me`, () => HttpResponse.json({}, { status: 503 })));
+    network.use(http.get(`${apiBase}/users/me`, () => HttpResponse.json({}, { status: 503 })));
     renderApp('/');
     expect(await screen.findByRole('alert')).toHaveTextContent(/having a moment/);
     expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
@@ -91,6 +91,6 @@ describe('register', () => {
     await user.type(screen.getByLabelText('Email'), DEMO.email);
     await user.type(screen.getByLabelText('Password'), 'seamstress');
     await user.click(screen.getByRole('button', { name: /subscribe/i }));
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/already on the list/));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/already registered/));
   });
 });

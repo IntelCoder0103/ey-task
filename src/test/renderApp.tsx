@@ -7,7 +7,7 @@ import { session } from '../api/session';
 import { AppRoutes } from '../App';
 import { routerFuture } from '../app/router';
 import { createQueryClient } from '../app/queryClient';
-import { DEMO } from '../mocks/demo';
+import { DEMO } from '../demo';
 
 export const renderApp = (route = '/', { fakeTimers = false } = {}) => {
   const client = createQueryClient({ retry: false });

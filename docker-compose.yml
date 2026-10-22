@@ -1,0 +1,27 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    environment:
+      SEED_DEMO: 'true'
+    volumes:
+      - atelier-data:/data
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      args:
+        VITE_DEMO_HINT: 'true'
+    environment:
+      API_UPSTREAM: http://api:4000/
+    ports:
+      - '8080:8080'
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  atelier-data:

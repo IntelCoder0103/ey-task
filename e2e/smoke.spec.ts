@@ -15,8 +15,14 @@ test('sign in, add, reorder, open detail, finish and sign out', async ({ page })
   await expect(list.getByRole('link', { name: description })).toBeVisible();
 
   await page.getByRole('button', { name: `Move “${description}” up` }).click();
-  const titles = await list.getByRole('link').allTextContents();
-  expect(titles.at(-2)).toBe(description);
+  await expect(list.getByRole('link').nth(-2)).toHaveText(description);
+
+  await page.reload();
+  await expect(list.getByRole('link').nth(-2)).toHaveText(description);
+
+  await page.getByRole('searchbox', { name: 'Search tasks' }).fill('cashmere');
+  await expect(list.getByRole('link')).toHaveText([description]);
+  await page.getByRole('button', { name: 'Clear' }).click();
 
   await list.getByRole('link', { name: description }).click();
   await expect(page.getByRole('heading', { level: 1, name: description })).toBeVisible();

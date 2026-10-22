@@ -1,14 +1,16 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { apiBase } from '../../api/config';
-import { db, server } from '../../mocks/server';
 import { renderApp, signInAsDemo } from '../../test/renderApp';
-import { UNDO_MS } from './TaskListPage';
+import { backend, network } from '../../test/network';
+import { SEARCH_DEBOUNCE_MS, UNDO_MS } from './TaskListPage';
 
 const rowTitles = () =>
   within(screen.getByRole('list', { name: 'Tasks' }))
     .getAllByRole('link')
     .map((link) => link.textContent);
+
+const stored = (description: string) => backend.ordered().find((task) => task.description === description);
 
 const openEdit = async (route = '/', options?: { fakeTimers?: boolean }) => {
   await signInAsDemo();
@@ -18,10 +20,6 @@ const openEdit = async (route = '/', options?: { fakeTimers?: boolean }) => {
 };
 
 describe('the edit (task list)', () => {
-  beforeEach(() => {
-    localStorage.clear();
-  });
-
   it('lists the demo tasks with numbering, counts and progress', async () => {
     await openEdit();
     expect(rowTitles()).toHaveLength(5);
@@ -37,7 +35,7 @@ describe('the edit (task list)', () => {
     expect(screen.getByText('Steam the silk blouse')).toBeInTheDocument();
     expect(screen.getByLabelText('New task')).toHaveValue('');
     await waitFor(() => expect(rowTitles()).toContain('Steam the silk blouse'));
-    expect(db.read().tasks.some((task) => task.description === 'Steam the silk blouse')).toBe(true);
+    expect(stored('Steam the silk blouse')).toMatchObject({ position: 5 });
   });
 
   it('ignores blank submissions', async () => {
@@ -51,17 +49,18 @@ describe('the edit (task list)', () => {
     const checkbox = screen.getByRole('checkbox', { name: /finished: draft the autumn moodboard/i });
     await user.click(checkbox);
     expect(checkbox).toBeChecked();
+    await waitFor(() => expect(stored('Draft the autumn moodboard')?.completed).toBe(true));
 
     await user.click(screen.getByRole('button', { name: /^finished/i }));
-    await waitFor(() => expect(rowTitles()).toContain('Draft the autumn moodboard'));
     expect(rowTitles()).toHaveLength(3);
-
     await user.click(screen.getByRole('button', { name: /in progress/i }));
     expect(rowTitles()).not.toContain('Draft the autumn moodboard');
   });
 
   it('rolls back an optimistic toggle when the server refuses', async () => {
-    server.use(http.put(`${apiBase}/task/:id`, () => HttpResponse.json({ error: 'Nope' }, { status: 500 })));
+    network.use(
+      http.patch(`${apiBase}/tasks/:id`, () => HttpResponse.json({ error: 'Nope' }, { status: 500 })),
+    );
     const { user } = await openEdit();
     const checkbox = screen.getByRole('checkbox', { name: /finished: draft the autumn moodboard/i });
     await user.click(checkbox);
@@ -70,17 +69,52 @@ describe('the edit (task list)', () => {
     expect(checkbox).not.toBeChecked();
   });
 
-  it('reorders with the move buttons and remembers the order', async () => {
+  it('reorders with the move buttons and persists the order on the server', async () => {
     const { user, unmount } = await openEdit();
     const [first, second] = rowTitles();
     await user.click(screen.getByRole('button', { name: `Move “${second}” up` }));
     expect(rowTitles().slice(0, 2)).toEqual([second, first]);
     expect(screen.getByRole('button', { name: `Move “${second}” up` })).toBeDisabled();
+    await waitFor(() => expect(stored(second!)?.position).toBe(0));
 
     unmount();
     renderApp('/');
     await screen.findByRole('list', { name: 'Tasks' });
     expect(rowTitles().slice(0, 2)).toEqual([second, first]);
+  });
+
+  it('searches on the server, keeps numbering and pauses reordering', async () => {
+    const { user } = await openEdit();
+    await user.type(screen.getByRole('searchbox', { name: 'Search tasks' }), 'TAILOR');
+
+    await waitFor(() => expect(rowTitles()).toEqual(['Call the tailor about the trouser hem']));
+    expect(screen.getByText('04')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Move/ })).not.toBeInTheDocument();
+    expect(screen.getByText('Clear the search to rearrange')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Clear' }));
+    await waitFor(() => expect(rowTitles()).toHaveLength(5));
+  });
+
+  it('explains when a search finds nothing', async () => {
+    await signInAsDemo();
+    renderApp('/?q=sequins');
+    expect(await screen.findByText('Nothing matches “sequins”.')).toBeInTheDocument();
+  });
+
+  it('debounces search requests', async () => {
+    const seen: string[] = [];
+    network.events.on('request:start', ({ request }) => {
+      const url = new URL(request.url);
+      if (url.href.startsWith(`${apiBase}/tasks`)) seen.push(url.searchParams.get('q') ?? '');
+    });
+    const { user } = await openEdit();
+    await user.type(screen.getByRole('searchbox', { name: 'Search tasks' }), 'linen');
+    await new Promise((resolve) => setTimeout(resolve, SEARCH_DEBOUNCE_MS * 2));
+    await waitFor(() => expect(rowTitles()).toHaveLength(1));
+
+    expect(seen.filter(Boolean)).toEqual(['linen']);
+    network.events.removeAllListeners();
   });
 
   it('removes a task after the undo window, or restores it on undo', async () => {
@@ -95,13 +129,16 @@ describe('the edit (task list)', () => {
 
     await user.click(screen.getByRole('button', { name: `Remove “${second}”` }));
     await act(() => vi.advanceTimersByTimeAsync(UNDO_MS));
-    await waitFor(() => expect(db.read().tasks.some((task) => task.description === second)).toBe(false));
+    await waitFor(() => expect(stored(second!)).toBeUndefined());
     expect(rowTitles()).not.toContain(second);
     vi.useRealTimers();
   });
 
   it('shows a tailored empty state per view', async () => {
-    db.reset({ ...db.read(), tasks: db.read().tasks.map((task) => ({ ...task, completed: true })) });
+    await backend.store.update((state) => [
+      { ...state, tasks: state.tasks.map((task) => ({ ...task, completed: true })) },
+      null,
+    ]);
     await signInAsDemo();
     const { user } = renderApp('/?view=open');
     expect(await screen.findByText('Nothing outstanding.')).toBeInTheDocument();
@@ -110,7 +147,7 @@ describe('the edit (task list)', () => {
   });
 
   it('explains when the list cannot load', async () => {
-    server.use(http.get(`${apiBase}/task`, () => HttpResponse.json({}, { status: 500 })));
+    network.use(http.get(`${apiBase}/tasks`, () => HttpResponse.json({}, { status: 500 })));
     await signInAsDemo();
     renderApp('/');
     expect(await screen.findByRole('heading', { name: 'The rail is empty.' })).toBeInTheDocument();
@@ -118,15 +155,13 @@ describe('the edit (task list)', () => {
 });
 
 describe('task detail', () => {
-  const firstTask = () => db.read().tasks[0]!;
+  const nth = (index: number) => backend.ordered()[index]!;
 
   it('opens from the list and shows the hang tag', async () => {
     const { user } = await openEdit();
-    await user.click(screen.getByRole('link', { name: firstTask().description }));
+    await user.click(screen.getByRole('link', { name: nth(0).description }));
 
-    expect(
-      await screen.findByRole('heading', { level: 1, name: firstTask().description }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: nth(0).description })).toBeInTheDocument();
     const tag = screen.getByRole('complementary', { name: 'Details' });
     expect(within(tag).getByText('Status').nextSibling).toHaveTextContent('Finished');
     expect(screen.getByText(/Look Nº 01/)).toBeInTheDocument();
@@ -134,7 +169,8 @@ describe('task detail', () => {
 
   it('edits the copy and toggles status', async () => {
     await signInAsDemo();
-    const { user } = renderApp(`/tasks/${db.read().tasks[1]!._id}`);
+    const { id } = nth(1);
+    const { user } = renderApp(`/tasks/${id}`);
     await user.click(await screen.findByRole('button', { name: 'Edit copy' }));
 
     const editor = screen.getByLabelText('Task description');
@@ -147,25 +183,22 @@ describe('task detail', () => {
     await user.click(screen.getByRole('button', { name: 'Mark as finished' }));
     expect(await screen.findByRole('button', { name: 'Reopen' })).toBeInTheDocument();
     await waitFor(() =>
-      expect(db.read().tasks[1]).toMatchObject({
-        description: 'Return the swatches by courier',
-        completed: true,
-      }),
+      expect(nth(1)).toMatchObject({ id, description: 'Return the swatches by courier', completed: true }),
     );
   });
 
   it('cancels editing with Escape', async () => {
     await signInAsDemo();
-    const { user } = renderApp(`/tasks/${firstTask()._id}`);
+    const { user } = renderApp(`/tasks/${nth(0).id}`);
     await user.click(await screen.findByRole('button', { name: 'Edit copy' }));
     await user.type(screen.getByLabelText('Task description'), ' changed{Escape}');
-    expect(screen.getByRole('heading', { level: 1, name: firstTask().description })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: nth(0).description })).toBeInTheDocument();
   });
 
   it('pages to the next look', async () => {
     await signInAsDemo();
-    const { user } = renderApp(`/tasks/${firstTask()._id}`);
-    const next = db.read().tasks[1]!.description;
+    const { user } = renderApp(`/tasks/${nth(0).id}`);
+    const next = nth(1).description;
     await user.click(await screen.findByRole('link', { name: new RegExp(next) }));
     expect(await screen.findByRole('heading', { level: 1, name: next })).toBeInTheDocument();
     expect(screen.getByText(/Look Nº 02/)).toBeInTheDocument();
@@ -173,15 +206,15 @@ describe('task detail', () => {
 
   it('removes after confirmation and returns to the list', async () => {
     await signInAsDemo();
-    const { user } = renderApp(`/tasks/${firstTask()._id}`);
-    const doomed = firstTask().description;
+    const doomed = nth(0);
+    const { user } = renderApp(`/tasks/${doomed.id}`);
     await user.click(await screen.findByRole('button', { name: 'Remove' }));
     await user.click(screen.getByRole('button', { name: 'Keep' }));
     await user.click(screen.getByRole('button', { name: 'Remove' }));
     await user.click(screen.getByRole('button', { name: 'Yes, remove it' }));
 
     expect(await screen.findByRole('heading', { name: /the edit/i })).toBeInTheDocument();
-    await waitFor(() => expect(db.read().tasks.some((task) => task.description === doomed)).toBe(false));
+    await waitFor(() => expect(stored(doomed.description)).toBeUndefined());
   });
 
   it('reports a missing task as out of print', async () => {

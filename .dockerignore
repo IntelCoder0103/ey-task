@@ -6,3 +6,6 @@ test-results
 .git
 .env
 .env.local
+server/dist
+server/data
+**/node_modules

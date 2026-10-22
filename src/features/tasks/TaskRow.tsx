@@ -13,12 +13,21 @@ type Props = {
   onRemove: (task: Task) => void;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
+  sortable?: boolean;
 };
 
-export const TaskRow = ({ task, number, onToggle, onRemove, onMoveUp, onMoveDown }: Props) => {
+export const TaskRow = ({
+  task,
+  number,
+  onToggle,
+  onRemove,
+  onMoveUp,
+  onMoveDown,
+  sortable = true,
+}: Props) => {
   const draft = isDraft(task);
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
-    useSortable({ id: task._id, disabled: draft });
+    useSortable({ id: task.id, disabled: draft || !sortable });
   const label = `“${task.description}”`;
 
   return (
@@ -36,6 +45,7 @@ export const TaskRow = ({ task, number, onToggle, onRemove, onMoveUp, onMoveDown
         className={styles.handle}
         aria-label={`Reorder ${label}`}
         disabled={draft}
+        hidden={!sortable}
         {...attributes}
         {...listeners}
       >
@@ -50,7 +60,7 @@ export const TaskRow = ({ task, number, onToggle, onRemove, onMoveUp, onMoveDown
         {draft ? (
           <span className={styles.title}>{task.description}</span>
         ) : (
-          <Link to={`/tasks/${task._id}`} className={styles.title}>
+          <Link to={`/tasks/${task.id}`} className={styles.title}>
             <span className={styles.text}>{task.description}</span>
           </Link>
         )}
@@ -68,24 +78,28 @@ export const TaskRow = ({ task, number, onToggle, onRemove, onMoveUp, onMoveDown
           />
           <span aria-hidden="true" />
         </label>
-        <button
-          type="button"
-          className={styles.icon}
-          onClick={onMoveUp}
-          disabled={!onMoveUp || draft}
-          aria-label={`Move ${label} up`}
-        >
-          ↑
-        </button>
-        <button
-          type="button"
-          className={styles.icon}
-          onClick={onMoveDown}
-          disabled={!onMoveDown || draft}
-          aria-label={`Move ${label} down`}
-        >
-          ↓
-        </button>
+        {sortable && (
+          <>
+            <button
+              type="button"
+              className={styles.icon}
+              onClick={onMoveUp}
+              disabled={!onMoveUp || draft}
+              aria-label={`Move ${label} up`}
+            >
+              ↑
+            </button>
+            <button
+              type="button"
+              className={styles.icon}
+              onClick={onMoveDown}
+              disabled={!onMoveDown || draft}
+              aria-label={`Move ${label} down`}
+            >
+              ↓
+            </button>
+          </>
+        )}
         <button
           type="button"
           className={`${styles.icon} ${styles.remove}`}

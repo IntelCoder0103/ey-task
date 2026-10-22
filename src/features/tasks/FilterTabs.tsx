@@ -3,9 +3,14 @@ import styles from './FilterTabs.module.css';
 
 const labels: Record<Filter, string> = { all: 'Everything', open: 'In progress', done: 'Finished' };
 
-type Props = { active: Filter; counts: Record<Filter, number>; onChange: (filter: Filter) => void };
+type Props = {
+  active: Filter;
+  counts: Record<Filter, number>;
+  sortable: boolean;
+  onChange: (filter: Filter) => void;
+};
 
-export const FilterTabs = ({ active, counts, onChange }: Props) => (
+export const FilterTabs = ({ active, counts, sortable, onChange }: Props) => (
   <div className={styles.bar}>
     <nav className={styles.tabs} aria-label="Filter tasks">
       {FILTERS.map((filter) => (
@@ -21,6 +26,8 @@ export const FilterTabs = ({ active, counts, onChange }: Props) => (
         </button>
       ))}
     </nav>
-    <p className={styles.hint}>Drag the dots, or use ↑ ↓, to rearrange</p>
+    <p className={styles.hint}>
+      {sortable ? 'Drag the dots, or use ↑ ↓, to rearrange' : 'Clear the search to rearrange'}
+    </p>
   </div>
 );

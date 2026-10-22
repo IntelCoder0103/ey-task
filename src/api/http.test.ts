@@ -87,6 +87,20 @@ describe('createHttp', () => {
     expect(onUnauthorized).not.toHaveBeenCalled();
   });
 
+  it('forwards abort signals and lets cancellations through untouched', async () => {
+    const controller = new AbortController();
+    const abort = Object.assign(new Error('Aborted'), { name: 'AbortError' });
+    controller.abort(abort);
+    const { http, fetch } = setup(abort);
+
+    await expect(http('/x', { signal: controller.signal, schema: Thing })).rejects.toBe(abort);
+    expect(fetch).toHaveBeenCalledWith('https://api.test/x', {
+      method: 'GET',
+      headers: { Authorization: 'Bearer tkn' },
+      signal: controller.signal,
+    });
+  });
+
   it('maps network failures', async () => {
     const { http } = setup(new TypeError('Failed to fetch'));
     await expect(http('/x', { schema: Thing })).rejects.toMatchObject({ status: 0 });
