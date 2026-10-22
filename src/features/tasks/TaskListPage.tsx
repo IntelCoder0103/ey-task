@@ -83,8 +83,10 @@ export const TaskListPage = () => {
   const counts = tally(everything);
   const progress = counts.all ? counts.done / counts.all : 0;
   const failure = [create, update, remove, reorder].find((mutation) => mutation.isError)?.error;
+  const reorderable = !searching && !create.isPending;
 
   const moveTask = (activeId: string, overId: string) => {
+    if (!reorderable) return;
     const ids = (collection.data ?? []).map((task) => task.id);
     const next = move(ids, activeId, overId);
     if (next !== ids) reorder.mutate(next);
@@ -93,7 +95,7 @@ export const TaskListPage = () => {
     if (over) moveTask(String(active.id), String(over.id));
   };
   const toggle = (task: Task) => update.mutate({ id: task.id, patch: { completed: !task.completed } });
-  const neighbour = (index: number) => (searching ? undefined : visible[index]?.id);
+  const neighbour = (index: number) => (reorderable ? visible[index]?.id : undefined);
 
   return (
     <main className={styles.page}>
@@ -168,7 +170,7 @@ export const TaskListPage = () => {
                     key={task.id}
                     task={task}
                     number={task.position + 1}
-                    sortable={!searching}
+                    sortable={reorderable}
                     onToggle={toggle}
                     onRemove={({ id }) => removal.schedule(id)}
                     onMoveUp={above ? () => moveTask(task.id, above) : undefined}

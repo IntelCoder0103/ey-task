@@ -136,6 +136,12 @@ describe('tasks', () => {
 
     await api.get(`/tasks/${body.id}`).set(auth).expect(200);
     await api.post('/tasks').set(auth).send({ description: '   ' }).expect(400);
+    const long = await api
+      .post('/tasks')
+      .set(auth)
+      .send({ description: 'x'.repeat(241) })
+      .expect(400);
+    expect(long.body.error).toBe('Keep descriptions to 240 characters or fewer.');
   });
 
   it('updates only allowed fields', async () => {

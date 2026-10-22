@@ -22,7 +22,7 @@ const description = z
   .string({ required_error: 'Description is required.' })
   .trim()
   .min(1, 'Description is required.')
-  .max(500, 'Keep descriptions under 500 characters.');
+  .max(240, 'Keep descriptions to 240 characters or fewer.');
 
 const Params = z.object({ id: z.string().min(1) });
 

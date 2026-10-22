@@ -10,3 +10,4 @@ test-results
 vite.config.ts.timestamp-*
 server/dist
 server/data
+/data

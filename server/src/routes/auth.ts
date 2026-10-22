@@ -27,7 +27,12 @@ const Registration = z.object({
     .string({ required_error: 'Password is required.' })
     .min(7, 'Password must be at least 7 characters.')
     .max(200),
-  age: z.number().int().min(0).max(150).optional(),
+  age: z
+    .number()
+    .int('Age must be a whole number.')
+    .min(0, 'Age must be 0 or more.')
+    .max(150, 'Age must be 150 or less.')
+    .optional(),
 });
 
 type Deps = { store: Store; passwordRounds: number; now: () => Date; guard: RequestHandler };

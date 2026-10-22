@@ -25,5 +25,3 @@ export const readConfig = (env: Record<string, string | undefined>) => {
     sessionTtlMs: parsed.SESSION_TTL_HOURS * HOUR_MS,
   };
 };
-
-export type Config = ReturnType<typeof readConfig>;

@@ -38,6 +38,28 @@ describe('the edit (task list)', () => {
     expect(stored('Steam the silk blouse')).toMatchObject({ position: 5 });
   });
 
+  it('pauses reordering while a new task is still being filed', async () => {
+    let release: () => void = () => undefined;
+    network.use(
+      http.post(
+        `${apiBase}/tasks`,
+        () =>
+          new Promise<Response>(
+            (resolve) => (release = () => resolve(HttpResponse.json({}, { status: 503 }))),
+          ),
+      ),
+    );
+    const { user } = await openEdit();
+    await user.type(screen.getByLabelText('New task'), 'Press the pleats{Enter}');
+
+    expect(screen.getByText('Press the pleats')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Move/ })).not.toBeInTheDocument();
+
+    release();
+    expect(await screen.findByRole('alert')).toHaveTextContent('That change didn’t save');
+    expect(screen.getAllByRole('button', { name: /^Move/ }).length).toBeGreaterThan(0);
+  });
+
   it('ignores blank submissions', async () => {
     const { user } = await openEdit();
     await user.type(screen.getByLabelText('New task'), '   ');
